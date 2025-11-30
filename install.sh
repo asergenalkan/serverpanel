@@ -167,28 +167,79 @@ check_resources() {
 install_packages() {
     log_step "Sistem Paketleri Kuruluyor"
     
+    # dpkg durumunu kontrol et ve düzelt
+    log_progress "dpkg durumu kontrol ediliyor"
+    dpkg --configure -a > /dev/null 2>&1 || true
+    apt-get -f install -y > /dev/null 2>&1 || true
+    log_done "dpkg durumu kontrol edildi"
+    
     log_progress "Paket listesi güncelleniyor"
     apt-get update -qq > /dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+        log_warn "Paket listesi güncellenemedi, tekrar deneniyor..."
+        apt-get update > /dev/null 2>&1
+    fi
     log_done "Paket listesi güncellendi"
     
-    local packages=(
-        curl wget git unzip tar net-tools sqlite3
-        apache2 libapache2-mod-fcgid
+    # Temel paketler (önce bunlar kurulmalı)
+    local base_packages=(curl wget git unzip tar net-tools sqlite3 build-essential debconf-utils)
+    log_progress "Temel paketler kuruluyor"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y "${base_packages[@]}" > /dev/null 2>&1
+    log_done "Temel paketler kuruldu"
+    
+    # MySQL paketleri (mysql-common önce!)
+    log_progress "MySQL kuruluyor"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-common > /dev/null 2>&1
+    DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server mysql-client > /dev/null 2>&1
+    
+    # MySQL kurulumunu doğrula
+    if ! command -v mysql &> /dev/null; then
+        log_warn "MySQL kurulumu başarısız, tekrar deneniyor..."
+        apt-get install -y mysql-server mysql-client
+    fi
+    
+    if command -v mysql &> /dev/null; then
+        log_done "MySQL kuruldu"
+    else
+        log_error "MySQL kurulamadı!"
+        exit 1
+    fi
+    
+    # Apache paketleri
+    log_progress "Apache kuruluyor"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y apache2 libapache2-mod-fcgid > /dev/null 2>&1
+    if command -v apache2 &> /dev/null; then
+        log_done "Apache kuruldu"
+    else
+        log_error "Apache kurulamadı!"
+        exit 1
+    fi
+    
+    # PHP paketleri
+    log_progress "PHP ${PHP_VERSION} kuruluyor"
+    local php_packages=(
         php${PHP_VERSION}-fpm php${PHP_VERSION}-cli php${PHP_VERSION}-mysql
         php${PHP_VERSION}-curl php${PHP_VERSION}-gd php${PHP_VERSION}-mbstring
         php${PHP_VERSION}-xml php${PHP_VERSION}-zip php${PHP_VERSION}-intl
-        mysql-server mysql-client
-        bind9 bind9-utils
-        certbot python3-certbot-apache
-        build-essential
     )
+    DEBIAN_FRONTEND=noninteractive apt-get install -y "${php_packages[@]}" > /dev/null 2>&1
     
-    log_progress "Paketler kuruluyor (bu biraz sürebilir)"
-    DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}" > /dev/null 2>&1
-    log_done "Tüm paketler kuruldu"
+    if [[ -f /usr/sbin/php-fpm${PHP_VERSION} ]] || [[ -f /usr/sbin/php-fpm ]]; then
+        log_done "PHP ${PHP_VERSION} kuruldu"
+    else
+        log_error "PHP-FPM kurulamadı!"
+        exit 1
+    fi
     
+    # Diğer servisler
+    log_progress "Ek servisler kuruluyor"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y bind9 bind9-utils certbot python3-certbot-apache > /dev/null 2>&1
+    log_done "Ek servisler kuruldu"
+    
+    # Kurulum özeti
+    echo ""
     log_info "Apache: $(apache2 -v 2>/dev/null | head -1 | awk '{print $3}')"
-    log_info "PHP: ${PHP_VERSION}"
+    log_info "PHP: $(php -v 2>/dev/null | head -1 | awk '{print $2}')"
     log_info "MySQL: $(mysql --version 2>/dev/null | awk '{print $3}')"
 }
 
@@ -201,33 +252,55 @@ configure_mysql() {
     
     ensure_directory "$CONFIG_DIR" "root" "700"
     
-    # MySQL config dosyasını kontrol et
+    # 1. MySQL paketlerinin kurulu olduğunu doğrula
+    log_detail "MySQL paketleri kontrol ediliyor"
+    if ! dpkg -l | grep -q "mysql-server"; then
+        log_warn "mysql-server paketi eksik, kuruluyor..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-common mysql-server mysql-client
+    fi
+    
+    # 2. MySQL config dosyasını kontrol et
     if [[ ! -f /etc/mysql/my.cnf ]] && [[ ! -f /etc/mysql/mysql.cnf ]]; then
         log_warn "MySQL config dosyası bulunamadı, yeniden kurulum yapılıyor..."
         
         # Tamamen kaldır
         systemctl stop mysql > /dev/null 2>&1
-        DEBIAN_FRONTEND=noninteractive apt-get purge -y mysql-server mysql-client mysql-common > /dev/null 2>&1
+        dpkg --purge --force-all mysql-server mysql-client mysql-server-8.0 mysql-client-8.0 mysql-server-core-8.0 mysql-client-core-8.0 mysql-common > /dev/null 2>&1
         rm -rf /var/lib/mysql /etc/mysql /var/run/mysqld > /dev/null 2>&1
         apt-get autoremove -y > /dev/null 2>&1
-        apt-get autoclean > /dev/null 2>&1
+        apt-get update > /dev/null 2>&1
         
-        # Yeniden kur
+        # Yeniden kur (sırayla!)
+        DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-common > /dev/null 2>&1
         DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server mysql-client > /dev/null 2>&1
         sleep 3
         
         if [[ ! -f /etc/mysql/my.cnf ]] && [[ ! -f /etc/mysql/mysql.cnf ]]; then
             log_error "MySQL kurulumu başarısız!"
+            log_error "Lütfen manuel olarak kurun: apt-get install mysql-server"
             exit 1
         fi
         log_done "MySQL yeniden kuruldu"
     fi
+    log_info "MySQL config dosyası mevcut ✓"
     
-    # MySQL socket dizinini oluştur
+    # 3. MySQL kullanıcısı kontrol et
+    if ! id mysql &>/dev/null; then
+        log_warn "MySQL kullanıcısı eksik, oluşturuluyor..."
+        useradd -r -s /bin/false mysql
+    fi
+    
+    # 4. MySQL socket dizinini oluştur
     log_detail "Socket dizini hazırlanıyor"
     ensure_directory "/var/run/mysqld" "mysql" "755"
     
-    # MySQL servisini başlat
+    # 5. MySQL data dizinini kontrol et
+    if [[ ! -d /var/lib/mysql/mysql ]]; then
+        log_warn "MySQL data dizini eksik, başlatılıyor..."
+        mysqld --initialize-insecure --user=mysql > /dev/null 2>&1 || true
+    fi
+    
+    # 6. MySQL servisini başlat
     log_progress "MySQL servisi başlatılıyor"
     systemctl daemon-reload > /dev/null 2>&1
     systemctl enable mysql > /dev/null 2>&1
@@ -237,7 +310,7 @@ configure_mysql() {
     
     # Servisin başlamasını bekle
     local attempts=0
-    while [[ $attempts -lt 15 ]]; do
+    while [[ $attempts -lt 20 ]]; do
         if systemctl is-active --quiet mysql && [[ -S /var/run/mysqld/mysqld.sock ]]; then
             break
         fi
@@ -247,21 +320,22 @@ configure_mysql() {
     
     if ! systemctl is-active --quiet mysql; then
         log_error "MySQL servisi başlatılamadı!"
-        journalctl -u mysql -n 10 --no-pager
+        journalctl -u mysql -n 15 --no-pager
         exit 1
     fi
     log_done "MySQL servisi başlatıldı"
     
+    # 7. Socket kontrolü
     if [[ ! -S /var/run/mysqld/mysqld.sock ]]; then
         log_error "MySQL socket dosyası bulunamadı!"
         exit 1
     fi
     log_info "MySQL socket: /var/run/mysqld/mysqld.sock ✓"
     
-    # Root şifresi oluştur
+    # 8. Root şifresi oluştur
     local MYSQL_ROOT_PASS=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 16)
     
-    # Şifreyi değiştir
+    # 9. Şifreyi değiştir
     log_progress "MySQL root şifresi ayarlanıyor"
     local password_set=false
     
@@ -279,13 +353,20 @@ configure_mysql() {
         fi
     fi
     
+    # Yöntem 3: Boş şifre ile
+    if [[ "$password_set" == "false" ]]; then
+        if mysql -uroot -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASS}'; FLUSH PRIVILEGES;" 2>/dev/null; then
+            password_set=true
+        fi
+    fi
+    
     if [[ "$password_set" == "false" ]]; then
         log_error "MySQL root şifresi ayarlanamadı!"
         exit 1
     fi
     log_done "MySQL root şifresi ayarlandı"
     
-    # Test et
+    # 10. Bağlantı testi
     if mysql -uroot -p"${MYSQL_ROOT_PASS}" -e "SELECT 1;" > /dev/null 2>&1; then
         log_info "MySQL bağlantısı: başarılı ✓"
     else
@@ -293,7 +374,12 @@ configure_mysql() {
         exit 1
     fi
     
-    # Kaydet
+    # 11. Test veritabanı oluştur
+    mysql -uroot -p"${MYSQL_ROOT_PASS}" -e "CREATE DATABASE IF NOT EXISTS serverpanel_test;" > /dev/null 2>&1
+    mysql -uroot -p"${MYSQL_ROOT_PASS}" -e "DROP DATABASE serverpanel_test;" > /dev/null 2>&1
+    log_info "MySQL veritabanı oluşturma: çalışıyor ✓"
+    
+    # 12. Kaydet
     echo "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASS}" > "${CONFIG_DIR}/mysql.conf"
     chmod 600 "${CONFIG_DIR}/mysql.conf"
     
@@ -307,22 +393,56 @@ configure_mysql() {
 configure_php() {
     log_step "PHP-FPM Yapılandırılıyor"
     
+    # 1. PHP-FPM paketinin kurulu olduğunu doğrula
+    log_detail "PHP-FPM paketi kontrol ediliyor"
+    if ! dpkg -l | grep -q "php${PHP_VERSION}-fpm"; then
+        log_warn "PHP-FPM paketi eksik, kuruluyor..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y php${PHP_VERSION}-fpm php${PHP_VERSION}-cli
+    fi
+    
+    # 2. PHP binary kontrol
+    if ! command -v php &> /dev/null; then
+        log_error "PHP bulunamadı!"
+        exit 1
+    fi
+    log_info "PHP sürümü: $(php -v | head -1 | awk '{print $2}')"
+    
+    # 3. PHP-FPM config dizini kontrol
+    local fpm_conf_dir="/etc/php/${PHP_VERSION}/fpm"
+    if [[ ! -d "$fpm_conf_dir" ]]; then
+        log_warn "PHP-FPM config dizini eksik, yeniden kuruluyor..."
+        DEBIAN_FRONTEND=noninteractive apt-get install --reinstall -y php${PHP_VERSION}-fpm
+    fi
+    
+    # 4. php-fpm.conf kontrol
+    if [[ ! -f "${fpm_conf_dir}/php-fpm.conf" ]]; then
+        log_warn "php-fpm.conf eksik, oluşturuluyor..."
+        cat > "${fpm_conf_dir}/php-fpm.conf" << FPMCONF
+[global]
+pid = /run/php/php${PHP_VERSION}-fpm.pid
+error_log = /var/log/php${PHP_VERSION}-fpm.log
+include=/etc/php/${PHP_VERSION}/fpm/pool.d/*.conf
+FPMCONF
+        log_done "php-fpm.conf oluşturuldu"
+    fi
+    
+    # 5. Socket dizini oluştur
     ensure_directory "/run/php" "www-data" "755"
     
-    # Pool dizinini kontrol et, yoksa oluştur
+    # 6. Pool dizinini kontrol et, yoksa oluştur
     local pool_dir="/etc/php/${PHP_VERSION}/fpm/pool.d"
     if [[ ! -d "$pool_dir" ]]; then
         mkdir -p "$pool_dir"
     fi
     
-    # Default www pool yoksa oluştur
-    if [[ ! -f "${pool_dir}/www.conf" ]]; then
-        log_warn "PHP-FPM www pool bulunamadı, oluşturuluyor..."
-        cat > "${pool_dir}/www.conf" << 'POOLEOF'
+    # 7. Default www pool yoksa oluştur
+    if [[ ! -f "${pool_dir}/www.conf" ]] || [[ ! -s "${pool_dir}/www.conf" ]]; then
+        log_warn "PHP-FPM www pool bulunamadı veya boş, oluşturuluyor..."
+        cat > "${pool_dir}/www.conf" << POOLEOF
 [www]
 user = www-data
 group = www-data
-listen = /run/php/php-fpm.sock
+listen = /run/php/php${PHP_VERSION}-fpm.sock
 listen.owner = www-data
 listen.group = www-data
 listen.mode = 0660
@@ -332,31 +452,65 @@ pm.start_servers = 2
 pm.min_spare_servers = 1
 pm.max_spare_servers = 5
 pm.max_requests = 500
+php_admin_value[error_log] = /var/log/php${PHP_VERSION}-fpm-www.log
+php_admin_flag[log_errors] = on
 POOLEOF
-        # PHP versiyonuna göre socket yolunu güncelle
-        sed -i "s|/run/php/php-fpm.sock|/run/php/php${PHP_VERSION}-fpm.sock|g" "${pool_dir}/www.conf"
         log_done "www pool oluşturuldu"
     fi
+    log_info "Pool config: ${pool_dir}/www.conf ✓"
     
+    # 8. Pool dosyasını doğrula (en az 1 pool olmalı)
+    local pool_count=$(ls -1 ${pool_dir}/*.conf 2>/dev/null | wc -l)
+    if [[ $pool_count -eq 0 ]]; then
+        log_error "Hiç PHP-FPM pool bulunamadı!"
+        exit 1
+    fi
+    log_info "Toplam ${pool_count} pool tanımlı ✓"
+    
+    # 9. PHP-FPM servisi başlat
     log_progress "PHP-FPM servisi başlatılıyor"
     systemctl daemon-reload > /dev/null 2>&1
     systemctl enable php${PHP_VERSION}-fpm > /dev/null 2>&1
-    systemctl restart php${PHP_VERSION}-fpm > /dev/null 2>&1
+    systemctl stop php${PHP_VERSION}-fpm > /dev/null 2>&1
+    sleep 1
+    systemctl start php${PHP_VERSION}-fpm > /dev/null 2>&1
     
-    sleep 2
+    # Bekle
+    local attempts=0
+    while [[ $attempts -lt 10 ]]; do
+        if systemctl is-active --quiet php${PHP_VERSION}-fpm; then
+            break
+        fi
+        sleep 1
+        attempts=$((attempts + 1))
+    done
     
     if ! systemctl is-active --quiet php${PHP_VERSION}-fpm; then
         log_error "PHP-FPM başlatılamadı!"
-        journalctl -u php${PHP_VERSION}-fpm -n 5 --no-pager
+        journalctl -u php${PHP_VERSION}-fpm -n 10 --no-pager
         exit 1
     fi
-    log_done "PHP-FPM başlatıldı"
+    log_done "PHP-FPM servisi başlatıldı"
     
+    # 10. Socket kontrolü
     local socket_path="/run/php/php${PHP_VERSION}-fpm.sock"
+    sleep 2
     if [[ -S "$socket_path" ]]; then
         log_info "PHP-FPM socket: $socket_path ✓"
     else
-        log_warn "PHP-FPM socket bulunamadı"
+        log_error "PHP-FPM socket oluşturulamadı: $socket_path"
+        exit 1
+    fi
+    
+    # 11. PHP-FPM çalışma testi
+    log_detail "PHP-FPM test ediliyor"
+    echo "<?php echo 'OK'; ?>" > /tmp/php-test.php
+    local test_result=$(php /tmp/php-test.php 2>/dev/null)
+    rm -f /tmp/php-test.php
+    if [[ "$test_result" == "OK" ]]; then
+        log_info "PHP CLI çalışıyor ✓"
+    else
+        log_warn "PHP CLI testi başarısız"
     fi
 }
 
@@ -367,16 +521,42 @@ POOLEOF
 configure_apache() {
     log_step "Apache Yapılandırılıyor"
     
+    # 1. Apache kurulu mu kontrol et
+    log_detail "Apache paketi kontrol ediliyor"
+    if ! command -v apache2 &> /dev/null; then
+        log_warn "Apache kurulu değil, kuruluyor..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y apache2 libapache2-mod-fcgid
+    fi
+    
+    if ! command -v apache2 &> /dev/null; then
+        log_error "Apache kurulamadı!"
+        exit 1
+    fi
+    log_info "Apache sürümü: $(apache2 -v 2>/dev/null | head -1 | awk '{print $3}')"
+    
+    # 2. Apache config dizini kontrol
+    if [[ ! -d /etc/apache2/sites-available ]]; then
+        log_error "Apache config dizini bulunamadı!"
+        exit 1
+    fi
+    
+    # 3. Modülleri aktifleştir
     log_progress "Apache modülleri aktifleştiriliyor"
-    a2enmod proxy_fcgi setenvif rewrite headers ssl expires proxy alias > /dev/null 2>&1
+    local modules=(proxy_fcgi setenvif rewrite headers ssl expires proxy alias)
+    for mod in "${modules[@]}"; do
+        a2enmod "$mod" > /dev/null 2>&1 || true
+    done
     log_done "Modüller aktif"
     
+    # 4. PHP-FPM config
     a2enconf php${PHP_VERSION}-fpm > /dev/null 2>&1 || true
     
+    # 5. Web dizinini oluştur
     ensure_directory "/var/www/html" "www-data" "755"
     echo "<h1>ServerPanel</h1><p>Server is running.</p>" > /var/www/html/index.html
+    chown www-data:www-data /var/www/html/index.html
     
-    # Default site
+    # 6. Default site oluştur
     log_progress "Default site oluşturuluyor"
     cat > /etc/apache2/sites-available/000-default.conf << APACHEEOF
 <VirtualHost *:80>
@@ -415,15 +595,39 @@ configure_apache() {
 APACHEEOF
     log_done "Default site oluşturuldu"
     
+    # 7. Site'ı aktifleştir
     a2ensite 000-default > /dev/null 2>&1
+    a2dissite default-ssl > /dev/null 2>&1 || true
     
+    # 8. Config testi
+    log_detail "Apache config test ediliyor"
+    if ! apache2ctl configtest > /dev/null 2>&1; then
+        log_warn "Apache config hatası var, düzeltiliyor..."
+        apache2ctl configtest 2>&1 | head -5
+    fi
+    
+    # 9. Servisi başlat
+    log_progress "Apache servisi başlatılıyor"
+    systemctl daemon-reload > /dev/null 2>&1
     systemctl enable apache2 > /dev/null 2>&1
-    systemctl restart apache2
+    systemctl restart apache2 > /dev/null 2>&1
+    
+    sleep 2
     
     if systemctl is-active --quiet apache2; then
-        log_info "Apache durumu: aktif ✓"
+        log_done "Apache servisi başlatıldı"
     else
         log_error "Apache başlatılamadı!"
+        journalctl -u apache2 -n 10 --no-pager
+        exit 1
+    fi
+    
+    # 10. HTTP test
+    log_detail "HTTP erişimi test ediliyor"
+    if curl -s http://localhost/ 2>/dev/null | grep -qi "ServerPanel"; then
+        log_info "HTTP erişimi: çalışıyor ✓"
+    else
+        log_warn "HTTP erişimi doğrulanamadı"
     fi
 }
 
