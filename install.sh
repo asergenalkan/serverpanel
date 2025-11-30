@@ -692,12 +692,18 @@ PMAEOF
     # Signon script
     cat > /var/www/html/pma-signon.php << 'SIGNONEOF'
 <?php
+// Get panel URL from environment or use default
+$panelPort = getenv('PORT') ?: '8443';
+$panelHost = getenv('SERVER_IP') ?: $_SERVER['HTTP_HOST'];
+$panelProtocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$panelBaseUrl = $panelProtocol . '://' . $panelHost . ':' . $panelPort;
+
 $token = $_GET['token'] ?? '';
 if (empty($token)) {
-    header('Location: http://' . $_SERVER['HTTP_HOST'] . ':8443/databases');
+    header('Location: ' . $panelBaseUrl . '/databases');
     exit;
 }
-$apiUrl = "http://127.0.0.1:8443/api/v1/internal/pma-credentials?token=" . urlencode($token);
+$apiUrl = "http://127.0.0.1:${panelPort}/api/v1/internal/pma-credentials?token=" . urlencode($token);
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $apiUrl);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -706,12 +712,12 @@ $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 if ($httpCode !== 200 || empty($response)) {
-    header('Location: http://' . $_SERVER['HTTP_HOST'] . ':8443/databases');
+    header('Location: ' . $panelBaseUrl . '/databases');
     exit;
 }
 $data = json_decode($response, true);
 if (!$data || empty($data['user']) || empty($data['password'])) {
-    header('Location: http://' . $_SERVER['HTTP_HOST'] . ':8443/databases');
+    header('Location: ' . $panelBaseUrl . '/databases');
     exit;
 }
 ini_set('session.use_cookies', 'true');
@@ -737,6 +743,12 @@ SIGNONEOF
     # Logout script
     cat > /var/www/html/pma-logout.php << 'LOGOUTEOF'
 <?php
+// Get panel URL from environment or use default
+$panelPort = getenv('PORT') ?: '8443';
+$panelHost = getenv('SERVER_IP') ?: $_SERVER['HTTP_HOST'];
+$panelProtocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$panelBaseUrl = $panelProtocol . '://' . $panelHost . ':' . $panelPort;
+
 ini_set('session.use_cookies', 'true');
 session_set_cookie_params(0, '/', '', false, true);
 session_name('SignonSession');
@@ -749,7 +761,7 @@ if (ini_get("session.use_cookies")) {
 @session_destroy();
 setcookie('phpMyAdmin', '', time() - 3600, '/');
 setcookie('phpMyAdmin', '', time() - 3600, '/phpmyadmin/');
-header('Location: http://' . $_SERVER['HTTP_HOST'] . ':8443/databases');
+header('Location: ' . $panelBaseUrl . '/databases');
 exit;
 LOGOUTEOF
     chown www-data:www-data /var/www/html/pma-logout.php

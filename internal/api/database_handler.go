@@ -616,14 +616,30 @@ func (h *Handler) GetPhpMyAdminURL(c *fiber.Ctx) error {
 	}
 	pmaMutex.Unlock()
 
-	// Get server IP for URL
-	serverIP := os.Getenv("SERVER_IP")
-	if serverIP == "" {
-		serverIP = "localhost"
+	// Get server IP/host for URL
+	// Try to get from request header first (for reverse proxy scenarios)
+	serverHost := c.Get("Host")
+	if serverHost == "" {
+		// Fallback to environment variable
+		serverHost = os.Getenv("SERVER_IP")
+		if serverHost == "" {
+			serverHost = "localhost"
+		}
+	}
+
+	// Determine protocol (http or https)
+	protocol := "http"
+	if c.Protocol() == "https" || c.Get("X-Forwarded-Proto") == "https" {
+		protocol = "https"
+	}
+
+	// Remove port from host if present (Apache serves on port 80/443)
+	if idx := strings.Index(serverHost, ":"); idx != -1 {
+		serverHost = serverHost[:idx]
 	}
 
 	// Return signon URL (pma-signon.php üzerinden geçecek)
-	pmaURL := fmt.Sprintf("http://%s/pma-signon.php?token=%s", serverIP, token)
+	pmaURL := fmt.Sprintf("%s://%s/pma-signon.php?token=%s", protocol, serverHost, token)
 
 	return c.JSON(models.APIResponse{
 		Success: true,
