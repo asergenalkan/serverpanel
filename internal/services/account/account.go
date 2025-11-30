@@ -272,6 +272,11 @@ func (s *Service) createDirectoryStructure(username, homeDir string) error {
 		log.Printf("📁 Directory created: %s", dir)
 	}
 
+	// Set home directory permissions (711) - Apache needs execute to traverse
+	os.Chmod(homeDir, 0711)
+	// Set public_html permissions (755) - Apache needs read access
+	os.Chmod(filepath.Join(homeDir, "public_html"), 0755)
+
 	// Create .htaccess for security
 	htaccess := filepath.Join(homeDir, "public_html", ".htaccess")
 	htaccessContent := `# Security headers
