@@ -44,6 +44,14 @@ func main() {
 	apiRouter := app.Group("/api/v1")
 	api.SetupRoutes(apiRouter, db)
 
+	// Serve static files (frontend)
+	app.Static("/", "./public")
+
+	// SPA fallback - serve index.html for all non-API routes
+	app.Get("/*", func(c *fiber.Ctx) error {
+		return c.SendFile("./public/index.html")
+	})
+
 	// Get port from config or environment
 	port := cfg.Port
 	if envPort := os.Getenv("PORT"); envPort != "" {
