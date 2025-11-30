@@ -201,12 +201,20 @@ configure_mysql() {
     
     ensure_directory "$CONFIG_DIR" "root" "700"
     
+    # MySQL config dosyasını kontrol et
+    if [[ ! -f /etc/mysql/my.cnf ]] && [[ ! -f /etc/mysql/mysql.cnf ]]; then
+        log_warn "MySQL config dosyası bulunamadı, yeniden yapılandırılıyor..."
+        DEBIAN_FRONTEND=noninteractive apt-get install --reinstall -y mysql-server mysql-client > /dev/null 2>&1
+        sleep 2
+    fi
+    
     # MySQL socket dizinini oluştur
     log_detail "Socket dizini hazırlanıyor"
     ensure_directory "/var/run/mysqld" "mysql" "755"
     
     # MySQL servisini başlat
     log_progress "MySQL servisi başlatılıyor"
+    systemctl daemon-reload > /dev/null 2>&1
     systemctl enable mysql > /dev/null 2>&1
     systemctl stop mysql > /dev/null 2>&1
     sleep 1
