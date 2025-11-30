@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import {
   Server,
@@ -16,6 +17,8 @@ import {
   Shield,
   HardDrive,
   Clock,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -44,18 +47,35 @@ const adminMenuItems = [
 
 export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[var(--color-page-bg)] transition-colors">
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-slate-200 z-50 flex flex-col">
+      <aside className="fixed left-0 top-0 h-full w-64 bg-[var(--color-sidebar)] border-r border-[var(--color-sidebar-border)] z-50 flex flex-col transition-colors">
         {/* Logo */}
-        <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-200">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-            <Server className="w-5 h-5 text-white" />
+        <div className="h-16 flex items-center justify-between px-6 border-b border-[var(--color-sidebar-border)]">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+              <Server className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-bold text-lg">ServerPanel</span>
           </div>
-          <span className="font-bold text-lg">ServerPanel</span>
+          {/* Theme Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            title={theme === 'light' ? 'Gece Modu' : 'Gündüz Modu'}
+            className="w-8 h-8"
+          >
+            {theme === 'light' ? (
+              <Moon className="w-4 h-4" />
+            ) : (
+              <Sun className="w-4 h-4 text-yellow-400" />
+            )}
+          </Button>
         </div>
 
         {/* Menu */}
@@ -72,17 +92,17 @@ export default function Layout({ children }: LayoutProps) {
                   to={item.disabled ? '#' : item.href}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     location.pathname === item.href
-                      ? 'bg-blue-50 text-blue-600'
+                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                       : item.disabled
-                      ? 'text-slate-300 cursor-not-allowed'
-                      : 'text-slate-600 hover:bg-slate-100'
+                      ? 'text-muted-foreground/50 cursor-not-allowed'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                   onClick={(e) => item.disabled && e.preventDefault()}
                 >
                   <item.icon className="w-5 h-5" />
                   {item.label}
                   {item.disabled && (
-                    <span className="ml-auto text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded">
+                    <span className="ml-auto text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
                       Yakında
                     </span>
                   )}
@@ -100,17 +120,17 @@ export default function Layout({ children }: LayoutProps) {
                   to={item.disabled ? '#' : item.href}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     location.pathname === item.href
-                      ? 'bg-blue-50 text-blue-600'
+                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                       : item.disabled
-                      ? 'text-slate-300 cursor-not-allowed'
-                      : 'text-slate-600 hover:bg-slate-100'
+                      ? 'text-muted-foreground/50 cursor-not-allowed'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                   onClick={(e) => item.disabled && e.preventDefault()}
                 >
                   <item.icon className="w-5 h-5" />
                   {item.label}
                   {item.disabled && (
-                    <span className="ml-auto text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded">
+                    <span className="ml-auto text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
                       Yakında
                     </span>
                   )}
@@ -121,7 +141,7 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
 
         {/* User */}
-        <div className="p-4 border-t border-slate-200">
+        <div className="p-4 border-t border-[var(--color-sidebar-border)]">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">{user?.username}</p>
