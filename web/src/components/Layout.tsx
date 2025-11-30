@@ -25,7 +25,7 @@ interface LayoutProps {
 // User menu items (for hosting users)
 const userMenuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-  { icon: FolderOpen, label: 'Dosya Yöneticisi', href: '/files', disabled: true },
+  { icon: FolderOpen, label: 'Dosya Yöneticisi', href: '/files' },
   { icon: Database, label: 'Veritabanları', href: '/databases', disabled: true },
   { icon: Mail, label: 'E-posta', href: '/email', disabled: true },
   { icon: Shield, label: 'SSL/TLS', href: '/ssl', disabled: true },

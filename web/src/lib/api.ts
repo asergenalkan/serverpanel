@@ -99,4 +99,28 @@ export const accountsAPI = {
   unsuspend: (id: number) => api.post(`/accounts/${id}/unsuspend`),
 };
 
+// File Manager
+export const filesAPI = {
+  list: (path: string = '/') => api.get('/files/list', { params: { path } }),
+  read: (path: string) => api.get('/files/read', { params: { path } }),
+  write: (path: string, content: string) => api.post('/files/write', { path, content }),
+  mkdir: (path: string) => api.post('/files/mkdir', { path }),
+  delete: (paths: string[]) => api.post('/files/delete', { paths }),
+  rename: (oldPath: string, newPath: string) => api.post('/files/rename', { old_path: oldPath, new_path: newPath }),
+  copy: (sources: string[], destination: string) => api.post('/files/copy', { sources, destination }),
+  move: (sources: string[], destination: string) => api.post('/files/move', { sources, destination }),
+  upload: (path: string, files: FileList | File[]) => {
+    const formData = new FormData();
+    formData.append('path', path);
+    Array.from(files).forEach(file => formData.append('files', file));
+    return api.post('/files/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  download: (path: string) => `/api/v1/files/download?path=${encodeURIComponent(path)}`,
+  compress: (paths: string[], destination: string) => api.post('/files/compress', { paths, destination }),
+  extract: (path: string, destination: string) => api.post('/files/extract', { path, destination }),
+  info: (path: string) => api.get('/files/info', { params: { path } }),
+};
+
 export default api;

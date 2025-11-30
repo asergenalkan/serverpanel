@@ -4,6 +4,7 @@ import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import Domains from '@/pages/Domains';
 import Accounts from '@/pages/Accounts';
+import FileManager from '@/pages/FileManager';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -96,6 +97,14 @@ function AppRoutes() {
           <AdminRoute>
             <Accounts />
           </AdminRoute>
+        }
+      />
+      <Route
+        path="/files"
+        element={
+          <ProtectedRoute>
+            <FileManager />
+          </ProtectedRoute>
         }
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
