@@ -822,19 +822,29 @@ install_serverpanel() {
     local FRONTEND_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/serverpanel-frontend.tar.gz"
     rm -f /tmp/frontend.tar.gz
     
-    # curl ile indir (redirect'leri takip et)
-    if curl -L -s "$FRONTEND_URL" -o /tmp/frontend.tar.gz 2>/dev/null; then
+    # wget ile indir (daha güvenilir)
+    if command -v wget &> /dev/null; then
+        wget -q --timeout=30 -O /tmp/frontend.tar.gz "$FRONTEND_URL" 2>/dev/null
+    else
+        curl -fsSL --connect-timeout 30 "$FRONTEND_URL" -o /tmp/frontend.tar.gz 2>/dev/null
+    fi
+    
+    # Dosya kontrolü
+    if [[ -f /tmp/frontend.tar.gz ]]; then
         local filesize=$(stat -c%s /tmp/frontend.tar.gz 2>/dev/null || echo "0")
-        if [[ "$filesize" -gt 1000 ]]; then
+        if [[ "$filesize" -gt 10000 ]]; then
             tar -xzf /tmp/frontend.tar.gz -C "$INSTALL_DIR/public" 2>/dev/null
             rm -f /tmp/frontend.tar.gz
             log_done "Frontend indirildi (${filesize} bytes)"
         else
-            log_warn "Frontend dosyası çok küçük: ${filesize} bytes"
+            log_warn "Frontend dosyası çok küçük: ${filesize} bytes - Manuel indirme gerekebilir"
             rm -f /tmp/frontend.tar.gz
+            # Fallback: Boş index.html oluştur
+            echo "<html><body><h1>ServerPanel</h1><p>Frontend yüklenemedi. Manuel olarak yükleyin.</p></body></html>" > "$INSTALL_DIR/public/index.html"
         fi
     else
-        log_warn "Frontend indirilemedi"
+        log_warn "Frontend indirilemedi - Manuel indirme gerekebilir"
+        echo "<html><body><h1>ServerPanel</h1><p>Frontend yüklenemedi. Manuel olarak yükleyin.</p></body></html>" > "$INSTALL_DIR/public/index.html"
     fi
 }
 
