@@ -207,7 +207,7 @@ export default function Domains() {
                   </thead>
                   <tbody>
                     {domains.map((domain) => (
-                      <tr key={domain.id} className="border-b hover:bg-slate-50">
+                      <tr key={domain.id} className="border-b hover:bg-muted/50">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <Globe className="w-4 h-4 text-blue-500" />

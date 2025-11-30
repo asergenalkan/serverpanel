@@ -629,7 +629,7 @@ export default function FileManager() {
               </div>
             ) : viewMode === 'list' ? (
               <table className="w-full">
-                <thead className="bg-slate-50 border-b">
+                <thead className="bg-muted/50 border-b">
                   <tr>
                     <th className="w-10 px-3 py-2">
                       <input
@@ -650,8 +650,8 @@ export default function FileManager() {
                   {filteredFiles.map((file) => (
                     <tr 
                       key={file.path}
-                      className={`border-b hover:bg-slate-50 cursor-pointer ${
-                        selectedFiles.has(file.path) ? 'bg-blue-50' : ''
+                      className={`border-b hover:bg-muted/50 cursor-pointer ${
+                        selectedFiles.has(file.path) ? 'bg-primary/10' : ''
                       }`}
                       onClick={() => handleFileClick(file)}
                     >
@@ -716,8 +716,8 @@ export default function FileManager() {
                 {filteredFiles.map((file) => (
                   <div
                     key={file.path}
-                    className={`flex flex-col items-center p-3 rounded-lg cursor-pointer hover:bg-slate-100 ${
-                      selectedFiles.has(file.path) ? 'bg-blue-100' : ''
+                    className={`flex flex-col items-center p-3 rounded-lg cursor-pointer hover:bg-muted ${
+                      selectedFiles.has(file.path) ? 'bg-primary/10' : ''
                     }`}
                     onClick={() => handleFileClick(file)}
                     onContextMenu={(e) => {
@@ -758,7 +758,7 @@ export default function FileManager() {
         {/* New Folder Modal */}
         {showNewFolder && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
+            <div className="bg-card rounded-lg p-6 w-96 shadow-xl border">
               <h3 className="text-lg font-semibold mb-4">Yeni Klasör</h3>
               <Input
                 value={newFolderName}
@@ -778,7 +778,7 @@ export default function FileManager() {
         {/* New File Modal */}
         {showNewFile && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
+            <div className="bg-card rounded-lg p-6 w-96 shadow-xl border">
               <h3 className="text-lg font-semibold mb-4">Yeni Dosya</h3>
               <Input
                 value={newFileName}
@@ -798,7 +798,7 @@ export default function FileManager() {
         {/* Rename Modal */}
         {showRename && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
+            <div className="bg-card rounded-lg p-6 w-96 shadow-xl border">
               <h3 className="text-lg font-semibold mb-4">Yeniden Adlandır</h3>
               <Input
                 value={renameName}
@@ -818,7 +818,7 @@ export default function FileManager() {
         {/* Editor Modal */}
         {showEditor && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl h-[80vh] flex flex-col">
+            <div className="bg-card rounded-lg shadow-xl border w-full max-w-5xl h-[80vh] flex flex-col">
               <div className="flex items-center justify-between p-4 border-b">
                 <div className="flex items-center gap-2">
                   <FileCode className="w-5 h-5 text-blue-500" />
@@ -835,7 +835,7 @@ export default function FileManager() {
                 <textarea
                   value={editorContent}
                   onChange={(e) => setEditorContent(e.target.value)}
-                  className="w-full h-full font-mono text-sm p-4 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full h-full font-mono text-sm p-4 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background text-foreground"
                   spellCheck={false}
                 />
               </div>
@@ -897,9 +897,9 @@ export default function FileManager() {
 
         {/* Drag overlay */}
         {dragOver && (
-          <div className="fixed inset-0 bg-blue-500/20 flex items-center justify-center z-40 pointer-events-none">
-            <div className="bg-white rounded-xl p-8 shadow-xl">
-              <Upload className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+          <div className="fixed inset-0 bg-primary/20 flex items-center justify-center z-40 pointer-events-none">
+            <div className="bg-card rounded-xl p-8 shadow-xl border">
+              <Upload className="w-16 h-16 text-primary mx-auto mb-4" />
               <p className="text-xl font-semibold text-center">Dosyaları buraya bırakın</p>
             </div>
           </div>

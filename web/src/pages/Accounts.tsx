@@ -228,16 +228,16 @@ export default function Accounts() {
         </div>
 
         {/* Info Banner */}
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/5 dark:border-blue-500/10">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-blue-900">Hesap Oluşturma Hakkında</p>
-                <p className="text-blue-700 mt-1">
+                <p className="font-medium text-blue-900 dark:text-blue-300">Hesap Oluşturma Hakkında</p>
+                <p className="text-blue-700 dark:text-blue-400 mt-1">
                   Hesap oluşturduğunuzda otomatik olarak:
                 </p>
-                <ul className="text-blue-700 mt-1 list-disc list-inside">
+                <ul className="text-blue-700 dark:text-blue-400 mt-1 list-disc list-inside">
                   <li>Linux kullanıcısı oluşturulur</li>
                   <li>Home dizini ve public_html klasörü oluşturulur</li>
                   <li>Apache virtual host konfigürasyonu yapılır</li>
@@ -253,7 +253,7 @@ export default function Accounts() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-100">
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-500/20">
                   <Users className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
@@ -266,7 +266,7 @@ export default function Accounts() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-100">
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-500/20">
                   <UserCheck className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
@@ -281,7 +281,7 @@ export default function Accounts() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-orange-100">
+                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-500/20">
                   <UserX className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
@@ -336,7 +336,7 @@ export default function Accounts() {
                     {accounts.map((account) => (
                       <tr 
                         key={account.id} 
-                        className={`border-b hover:bg-slate-50 transition-opacity ${
+                        className={`border-b hover:bg-muted/50 transition-opacity ${
                           deletingId === account.id ? 'opacity-50 pointer-events-none' : ''
                         }`}
                       >
@@ -366,12 +366,12 @@ export default function Accounts() {
                         </td>
                         <td className="py-3 px-4">
                           {account.active ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400">
                               <UserCheck className="w-3 h-3" />
                               Aktif
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400">
                               <UserX className="w-3 h-3" />
                               Askıda
                             </span>
@@ -582,20 +582,20 @@ export default function Accounts() {
                     </div>
 
                     {/* Önizleme */}
-                    <div className="p-3 rounded-lg bg-slate-100 text-sm mt-4">
-                      <p className="font-medium mb-2 text-slate-700">Oluşturulacaklar:</p>
+                    <div className="p-3 rounded-lg bg-muted text-sm mt-4">
+                      <p className="font-medium mb-2">Oluşturulacaklar:</p>
                       <ul className="text-muted-foreground space-y-1 text-xs">
                         <li className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                          Linux user: <code className="bg-white px-1 rounded">{formData.username || '...'}</code>
+                          Linux user: <code className="bg-background px-1 rounded">{formData.username || '...'}</code>
                         </li>
                         <li className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                          Home: <code className="bg-white px-1 rounded">/home/{formData.username || '...'}</code>
+                          Home: <code className="bg-background px-1 rounded">/home/{formData.username || '...'}</code>
                         </li>
                         <li className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                          Apache: <code className="bg-white px-1 rounded">{formData.domain || '...'}.conf</code>
+                          Apache: <code className="bg-background px-1 rounded">{formData.domain || '...'}.conf</code>
                         </li>
                       </ul>
                     </div>
