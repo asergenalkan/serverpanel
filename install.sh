@@ -669,24 +669,30 @@ install_phpmyadmin() {
     DEBIAN_FRONTEND=noninteractive apt-get install -y phpmyadmin > /dev/null 2>&1
     log_done "phpMyAdmin kuruldu"
     
-    # Blowfish secret
-    if [[ -f /etc/phpmyadmin/config.inc.php ]]; then
-        local BLOWFISH=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)
-        sed -i "s/\$cfg\['blowfish_secret'\] = ''/\$cfg['blowfish_secret'] = '${BLOWFISH}'/" /etc/phpmyadmin/config.inc.php 2>/dev/null || true
-    fi
-    
-    # Signon authentication için config ekle
-    log_progress "Signon authentication ayarlanıyor"
-    mkdir -p /etc/phpmyadmin/conf.d
-    cat > /etc/phpmyadmin/conf.d/serverpanel.php << 'SIGNONEOF'
+    # Ana config.inc.php oluştur (signon authentication ile)
+    log_progress "phpMyAdmin config oluşturuluyor"
+    local BLOWFISH=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)
+    cat > /usr/share/phpmyadmin/config.inc.php << PMACONFIG
 <?php
-// ServerPanel Signon Authentication
-$cfg['Servers'][1]['auth_type'] = 'signon';
-$cfg['Servers'][1]['SignonSession'] = 'SignonSession';
-$cfg['Servers'][1]['SignonURL'] = '/pma-signon.php';
-$cfg['Servers'][1]['LogoutURL'] = '/phpmyadmin/';
-SIGNONEOF
-    log_done "Signon config oluşturuldu"
+\$cfg['blowfish_secret'] = '${BLOWFISH}';
+
+\$i = 0;
+\$i++;
+
+\$cfg['Servers'][\$i]['auth_type'] = 'signon';
+\$cfg['Servers'][\$i]['SignonSession'] = 'SignonSession';
+\$cfg['Servers'][\$i]['SignonURL'] = '/pma-signon.php';
+\$cfg['Servers'][\$i]['LogoutURL'] = '/phpmyadmin/';
+\$cfg['Servers'][\$i]['host'] = 'localhost';
+\$cfg['Servers'][\$i]['compress'] = false;
+\$cfg['Servers'][\$i]['AllowNoPassword'] = false;
+
+\$cfg['UploadDir'] = '';
+\$cfg['SaveDir'] = '';
+PMACONFIG
+    chown root:root /usr/share/phpmyadmin/config.inc.php
+    chmod 644 /usr/share/phpmyadmin/config.inc.php
+    log_done "phpMyAdmin config oluşturuldu"
     
     # Signon PHP script'i oluştur
     log_progress "Signon script oluşturuluyor"
