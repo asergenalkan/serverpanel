@@ -467,7 +467,7 @@ func (s *Service) ListAccounts() ([]Account, error) {
 	return accounts, nil
 }
 
-// DeleteAccount deletes a hosting account
+// DeleteAccount deletes a hosting account completely
 func (s *Service) DeleteAccount(userID int64) error {
 	// Get username first
 	var username string
@@ -477,6 +477,7 @@ func (s *Service) DeleteAccount(userID int64) error {
 	}
 
 	homeDir := filepath.Join(s.cfg.HomeBaseDir, username)
+	log.Printf("🗑️ Deleting account: %s (ID: %d)", username, userID)
 
 	// Get all domains BEFORE deleting from database
 	var domains []string
@@ -487,6 +488,19 @@ func (s *Service) DeleteAccount(userID int64) error {
 			var domainName string
 			if rows.Scan(&domainName) == nil {
 				domains = append(domains, domainName)
+			}
+		}
+	}
+
+	// Get all MySQL databases for this user
+	var databases []string
+	dbRows, err := s.db.Query("SELECT name FROM databases WHERE user_id = ?", userID)
+	if err == nil {
+		defer dbRows.Close()
+		for dbRows.Next() {
+			var dbName string
+			if dbRows.Scan(&dbName) == nil {
+				databases = append(databases, dbName)
 			}
 		}
 	}
@@ -509,49 +523,100 @@ func (s *Service) DeleteAccount(userID int64) error {
 		}
 	}
 
-	// Delete PHP-FPM pool
+	// Delete PHP-FPM pool first
 	phpfpm := webserver.NewPHPFPMManager(s.cfg.SimulateMode, s.cfg.SimulateBasePath, s.cfg.PHPVersion)
 	if err := phpfpm.DeletePool(username); err != nil {
 		log.Printf("Warning: failed to delete PHP-FPM pool for %s: %v", username, err)
 	}
 
-	// Delete from database
+	// Restart PHP-FPM to release the pool processes
+	if !config.IsDevelopment() && s.cfg.IsLinux {
+		log.Printf("🔄 Restarting PHP-FPM to release pool processes...")
+		restartCmd := exec.Command("systemctl", "restart", fmt.Sprintf("php%s-fpm", s.cfg.PHPVersion))
+		if output, err := restartCmd.CombinedOutput(); err != nil {
+			log.Printf("Warning: PHP-FPM restart failed: %v - %s", err, string(output))
+			// Try alternative restart
+			exec.Command("systemctl", "restart", "php-fpm").Run()
+		}
+		// Give PHP-FPM time to restart
+		exec.Command("sleep", "1").Run()
+	}
+
+	// Kill all processes owned by the user
+	if !config.IsDevelopment() && s.cfg.IsLinux {
+		log.Printf("🔪 Killing all processes for user: %s", username)
+		killCmd := exec.Command("pkill", "-9", "-u", username)
+		killCmd.Run() // Ignore error - user might not have any processes
+		// Wait a moment for processes to die
+		exec.Command("sleep", "1").Run()
+	}
+
+	// Delete MySQL databases and users
+	if !config.IsDevelopment() {
+		mysqlRootPass := os.Getenv("MYSQL_ROOT_PASSWORD")
+		if mysqlRootPass != "" {
+			for _, dbName := range databases {
+				log.Printf("🗑️ Dropping MySQL database: %s", dbName)
+				// Drop database
+				dropDBCmd := exec.Command("mysql", "-uroot", "-p"+mysqlRootPass, "-e", fmt.Sprintf("DROP DATABASE IF EXISTS `%s`;", dbName))
+				dropDBCmd.Run()
+				// Drop user (same name as database)
+				dropUserCmd := exec.Command("mysql", "-uroot", "-p"+mysqlRootPass, "-e", fmt.Sprintf("DROP USER IF EXISTS '%s'@'localhost';", dbName))
+				dropUserCmd.Run()
+			}
+			// Also drop any database users with username prefix
+			dropPrefixUsersCmd := exec.Command("mysql", "-uroot", "-p"+mysqlRootPass, "-e",
+				fmt.Sprintf("SELECT CONCAT('DROP USER IF EXISTS \\'', user, '\\'@\\'', host, '\\';') FROM mysql.user WHERE user LIKE '%s\\_%%';", username))
+			if output, err := dropPrefixUsersCmd.Output(); err == nil {
+				for _, line := range strings.Split(string(output), "\n") {
+					if strings.HasPrefix(line, "DROP USER") {
+						exec.Command("mysql", "-uroot", "-p"+mysqlRootPass, "-e", line).Run()
+					}
+				}
+			}
+		}
+	}
+
+	// Delete from panel database
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
+	tx.Exec("DELETE FROM database_users WHERE user_id = ?", userID)
 	tx.Exec("DELETE FROM user_packages WHERE user_id = ?", userID)
 	tx.Exec("DELETE FROM domains WHERE user_id = ?", userID)
 	tx.Exec("DELETE FROM databases WHERE user_id = ?", userID)
 	tx.Exec("DELETE FROM email_accounts WHERE user_id = ?", userID)
+	tx.Exec("DELETE FROM activity_logs WHERE user_id = ?", userID)
 	tx.Exec("DELETE FROM users WHERE id = ?", userID)
 
 	if err := tx.Commit(); err != nil {
 		return err
 	}
 
-	// Delete system resources (Linux user)
+	// Delete system user
 	if config.IsDevelopment() {
 		log.Printf("🔧 [SIMÜLASYON] userdel -r %s", username)
 		log.Printf("🔧 [SIMÜLASYON] rm -rf %s", homeDir)
 	} else if s.cfg.IsLinux {
+		log.Printf("🗑️ Deleting system user: %s", username)
 		cmd := exec.Command("userdel", "-r", username)
 		if output, err := cmd.CombinedOutput(); err != nil {
-			log.Printf("⚠️ userdel failed for %s: %v - %s", username, err, string(output))
-			// Try without -r flag if home dir doesn't exist
+			log.Printf("⚠️ userdel -r failed for %s: %v - %s", username, err, string(output))
+			// Try without -r flag
 			cmd2 := exec.Command("userdel", username)
 			if output2, err2 := cmd2.CombinedOutput(); err2 != nil {
-				log.Printf("⚠️ userdel (no -r) also failed for %s: %v - %s", username, err2, string(output2))
+				log.Printf("⚠️ userdel also failed for %s: %v - %s", username, err2, string(output2))
 			}
 		}
 	}
 
-	// Always try to delete the home directory
+	// Always try to delete the home directory (in case userdel -r didn't work)
 	os.RemoveAll(homeDir)
 
-	log.Printf(" Account deleted: %s", username)
+	log.Printf("✅ Account deleted completely: %s", username)
 	return nil
 }
 

@@ -59,6 +59,8 @@ export default function Accounts() {
   const [showPassword, setShowPassword] = useState(false);
   const [addingAccount, setAddingAccount] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
+  const [deleteProgress, setDeleteProgress] = useState<string[]>([]);
   const [error, setError] = useState('');
 
   // Domain'den kullanıcı adı üret
@@ -178,28 +180,45 @@ export default function Accounts() {
     }
   };
 
-  const handleDeleteAccount = async (id: number, username: string) => {
-    if (!confirm(`"${username}" hesabını silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz ve tüm dosyalar silinecektir!`)) {
+  const handleDeleteAccount = async (account: Account) => {
+    if (!confirm(`"${account.username}" hesabını silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz ve tüm dosyalar, veritabanları silinecektir!`)) {
       return;
     }
 
-    setDeletingId(id);
+    setDeletingId(account.id);
+    setDeletingAccount(account);
+    setDeleteProgress([
+      '🔄 Hesap silme işlemi başlatılıyor...',
+      '⏳ Apache vhost yapılandırması siliniyor...',
+      '⏳ PHP-FPM pool durduruluyor...',
+      '⏳ DNS zone siliniyor...',
+      '⏳ MySQL veritabanları siliniyor...',
+      '⏳ Sistem kullanıcısı siliniyor...',
+      '⏳ Dosyalar temizleniyor...',
+    ]);
     
     try {
-      const response = await accountsAPI.delete(id);
+      const response = await accountsAPI.delete(account.id);
       if (response.data.success) {
-        // Optimistic UI - hemen listeden kaldır
-        setAccounts(prev => prev.filter(a => a.id !== id));
+        setDeleteProgress(prev => [...prev.slice(0, -1), '✅ Hesap başarıyla silindi!']);
+        // Wait a moment to show success
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Remove from list
+        setAccounts(prev => prev.filter(a => a.id !== account.id));
       } else {
-        alert('Hesap silinemedi: ' + (response.data.error || 'Bilinmeyen hata'));
-        fetchAccounts(); // Listeyi yenile
+        setDeleteProgress(prev => [...prev, `❌ Hata: ${response.data.error || 'Bilinmeyen hata'}`]);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        fetchAccounts();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete account:', error);
-      alert('Hesap silinirken bir hata oluştu. Lütfen tekrar deneyin.');
-      fetchAccounts(); // Listeyi yenile
+      setDeleteProgress(prev => [...prev, `❌ Hata: ${error.response?.data?.error || 'Sunucu hatası'}`]);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      fetchAccounts();
     } finally {
       setDeletingId(null);
+      setDeletingAccount(null);
+      setDeleteProgress([]);
     }
   };
 
@@ -426,7 +445,7 @@ export default function Accounts() {
                               variant="ghost"
                               size="sm"
                               className="text-red-500 hover:text-red-700"
-                              onClick={() => handleDeleteAccount(account.id, account.username)}
+                              onClick={() => handleDeleteAccount(account)}
                               disabled={deletingId === account.id}
                               title="Sil"
                             >
@@ -644,6 +663,46 @@ export default function Accounts() {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Progress Modal */}
+      {deletingAccount && deleteProgress.length > 0 && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
+                <RefreshCw className="w-8 h-8 text-red-600 animate-spin" />
+              </div>
+              <CardTitle className="text-red-600">Hesap Siliniyor</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                <strong>{deletingAccount.username}</strong> hesabı siliniyor...
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                {deleteProgress.map((step, index) => (
+                  <div 
+                    key={index}
+                    className={`p-2 rounded ${
+                      step.startsWith('✅') 
+                        ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400'
+                        : step.startsWith('❌')
+                        ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400'
+                        : step.startsWith('🔄')
+                        ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {step}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground text-center mt-4">
+                Bu işlem birkaç saniye sürebilir, lütfen bekleyin...
+              </p>
             </CardContent>
           </Card>
         </div>
