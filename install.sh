@@ -31,7 +31,7 @@ DATA_DIR="/var/lib/serverpanel"
 LOG_DIR="/var/log/serverpanel"
 CONFIG_DIR="/root/.serverpanel"
 GITHUB_REPO="asergenalkan/serverpanel"
-RELEASE_URL="https://github/${GITHUB_REPO}/releases/download/v${VERSION}"
+RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}"
 
 # PHP Sürümü (OS'a göre belirlenir)
 PHP_VERSION=""
