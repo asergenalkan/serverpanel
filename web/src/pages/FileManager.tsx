@@ -98,7 +98,8 @@ export default function FileManager() {
   const [showNewFile, setShowNewFile] = useState(false);
   const [showRename, setShowRename] = useState<FileItem | null>(null);
   const [showEditor, setShowEditor] = useState<{ path: string; content: string; name: string } | null>(null);
-  const [showPreview, setShowPreview] = useState<{ path: string; name: string; type: 'image' } | null>(null);
+  const [showPreview, setShowPreview] = useState<{ url: string; name: string } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   
   // Form states
   const [newFolderName, setNewFolderName] = useState('');
@@ -156,25 +157,53 @@ export default function FileManager() {
     return imageExtensions.includes(ext.toLowerCase());
   };
 
+  // Load image for preview
+  const loadImagePreview = async (file: FileItem) => {
+    setPreviewLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/v1/files/download?path=${encodeURIComponent(file.path)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        setShowPreview({ url, name: file.name });
+      }
+    } catch (error) {
+      console.error('Failed to load image:', error);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   // Handle file click
   const handleFileClick = (file: FileItem) => {
     if (file.is_dir) {
       navigateTo(file.path);
     } else if (isImageFile(file.extension || '')) {
       // Show image preview
-      setShowPreview({ path: file.path, name: file.name, type: 'image' });
+      loadImagePreview(file);
     } else if (isEditableFile(file.extension || '')) {
       // Open in editor
       openFile(file);
     } else {
-      // Download other files
-      const url = filesAPI.download(file.path);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Download other files - use fetch with auth
+      const token = localStorage.getItem('token');
+      fetch(`/api/v1/files/download?path=${encodeURIComponent(file.path)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.blob())
+        .then(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        });
     }
   };
 
@@ -825,19 +854,25 @@ export default function FileManager() {
         {showPreview && (
           <div 
             className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowPreview(null)}
+            onClick={() => {
+              URL.revokeObjectURL(showPreview.url);
+              setShowPreview(null);
+            }}
           >
             <div className="relative max-w-4xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
               <Button
                 variant="ghost"
                 size="sm"
                 className="absolute -top-10 right-0 text-white hover:bg-white/20"
-                onClick={() => setShowPreview(null)}
+                onClick={() => {
+                  URL.revokeObjectURL(showPreview.url);
+                  setShowPreview(null);
+                }}
               >
                 <X className="w-6 h-6" />
               </Button>
               <img
-                src={filesAPI.download(showPreview.path)}
+                src={showPreview.url}
                 alt={showPreview.name}
                 className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
               />
@@ -846,6 +881,16 @@ export default function FileManager() {
                   {showPreview.name}
                 </span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Loading overlay for preview */}
+        {previewLoading && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="text-white text-center">
+              <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2" />
+              <p>Yükleniyor...</p>
             </div>
           </div>
         )}
