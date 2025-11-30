@@ -309,7 +309,37 @@ configure_php() {
     
     ensure_directory "/run/php" "www-data" "755"
     
+    # Pool dizinini kontrol et, yoksa oluştur
+    local pool_dir="/etc/php/${PHP_VERSION}/fpm/pool.d"
+    if [[ ! -d "$pool_dir" ]]; then
+        mkdir -p "$pool_dir"
+    fi
+    
+    # Default www pool yoksa oluştur
+    if [[ ! -f "${pool_dir}/www.conf" ]]; then
+        log_warn "PHP-FPM www pool bulunamadı, oluşturuluyor..."
+        cat > "${pool_dir}/www.conf" << 'POOLEOF'
+[www]
+user = www-data
+group = www-data
+listen = /run/php/php-fpm.sock
+listen.owner = www-data
+listen.group = www-data
+listen.mode = 0660
+pm = dynamic
+pm.max_children = 10
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 5
+pm.max_requests = 500
+POOLEOF
+        # PHP versiyonuna göre socket yolunu güncelle
+        sed -i "s|/run/php/php-fpm.sock|/run/php/php${PHP_VERSION}-fpm.sock|g" "${pool_dir}/www.conf"
+        log_done "www pool oluşturuldu"
+    fi
+    
     log_progress "PHP-FPM servisi başlatılıyor"
+    systemctl daemon-reload > /dev/null 2>&1
     systemctl enable php${PHP_VERSION}-fpm > /dev/null 2>&1
     systemctl restart php${PHP_VERSION}-fpm > /dev/null 2>&1
     
@@ -317,6 +347,7 @@ configure_php() {
     
     if ! systemctl is-active --quiet php${PHP_VERSION}-fpm; then
         log_error "PHP-FPM başlatılamadı!"
+        journalctl -u php${PHP_VERSION}-fpm -n 5 --no-pager
         exit 1
     fi
     log_done "PHP-FPM başlatıldı"
