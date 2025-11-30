@@ -215,11 +215,11 @@ func (h *Handler) CreateDatabase(c *fiber.Ctx) error {
 
 	id, _ := result.LastInsertId()
 
-	// Save database user info
+	// Save database user info with password
 	h.db.Exec(`
-		INSERT INTO database_users (user_id, database_id, db_username, host)
-		VALUES (?, ?, ?, 'localhost')
-	`, userID, id, dbUser)
+		INSERT INTO database_users (user_id, database_id, db_username, password, host)
+		VALUES (?, ?, ?, ?, 'localhost')
+	`, userID, id, dbUser, password)
 
 	return c.Status(fiber.StatusCreated).JSON(models.APIResponse{
 		Success: true,
@@ -456,9 +456,9 @@ func (h *Handler) CreateDatabaseUser(c *fiber.Ctx) error {
 	}
 
 	result, err := h.db.Exec(`
-		INSERT INTO database_users (user_id, database_id, db_username, host)
-		VALUES (?, ?, ?, 'localhost')
-	`, userID, req.DatabaseID, fullUsername)
+		INSERT INTO database_users (user_id, database_id, db_username, password, host)
+		VALUES (?, ?, ?, ?, 'localhost')
+	`, userID, req.DatabaseID, fullUsername, req.Password)
 
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
@@ -475,6 +475,7 @@ func (h *Handler) CreateDatabaseUser(c *fiber.Ctx) error {
 		Data: map[string]interface{}{
 			"id":       id,
 			"username": fullUsername,
+			"password": req.Password,
 			"host":     "localhost",
 		},
 	})

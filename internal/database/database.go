@@ -102,6 +102,7 @@ func (db *DB) migrate() error {
 			user_id INTEGER NOT NULL,
 			database_id INTEGER NOT NULL,
 			db_username TEXT UNIQUE NOT NULL,
+			password TEXT,
 			host TEXT DEFAULT 'localhost',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -157,6 +158,9 @@ func (db *DB) migrate() error {
 			return err
 		}
 	}
+
+	// Add password column to database_users if not exists
+	db.Exec(`ALTER TABLE database_users ADD COLUMN password TEXT`)
 
 	// Create default admin user if not exists
 	if err := db.createDefaultAdmin(); err != nil {
