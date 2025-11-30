@@ -220,7 +220,7 @@ configure_apache() {
     log_step "Apache Yapılandırılıyor"
     
     log_progress "Apache modülleri aktifleştiriliyor"
-    a2enmod proxy_fcgi setenvif rewrite headers ssl expires > /dev/null 2>&1
+    a2enmod proxy_fcgi setenvif rewrite headers ssl expires proxy > /dev/null 2>&1
     log_done "Modüller aktif"
     
     # PHP-FPM entegrasyonu
@@ -228,7 +228,54 @@ configure_apache() {
     [[ "$VERSION_ID" == "24.04" ]] && PHP_VERSION="8.3" || PHP_VERSION="8.1"
     
     a2enconf php${PHP_VERSION}-fpm > /dev/null 2>&1 || true
-    a2dissite 000-default > /dev/null 2>&1 || true
+    
+    # Default site oluştur (phpMyAdmin ve genel erişim için)
+    log_progress "Default site oluşturuluyor"
+    cat > /etc/apache2/sites-available/000-default.conf << DEFAULTEOF
+<VirtualHost *:80>
+    ServerName localhost
+    DocumentRoot /var/www/html
+    
+    # PHP-FPM
+    <FilesMatch \.php\$>
+        SetHandler "proxy:unix:/run/php/php${PHP_VERSION}-fpm.sock|fcgi://localhost"
+    </FilesMatch>
+    
+    <Directory /var/www/html>
+        AllowOverride All
+        Require all granted
+    </Directory>
+    
+    # phpMyAdmin
+    Alias /phpmyadmin /usr/share/phpmyadmin
+    <Directory /usr/share/phpmyadmin>
+        Options SymLinksIfOwnerMatch
+        DirectoryIndex index.php
+        AllowOverride All
+        Require all granted
+        <FilesMatch \.php\$>
+            SetHandler "proxy:unix:/run/php/php${PHP_VERSION}-fpm.sock|fcgi://localhost"
+        </FilesMatch>
+    </Directory>
+    <Directory /usr/share/phpmyadmin/templates>
+        Require all denied
+    </Directory>
+    <Directory /usr/share/phpmyadmin/libraries>
+        Require all denied
+    </Directory>
+    
+    ErrorLog \${APACHE_LOG_DIR}/error.log
+    CustomLog \${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+DEFAULTEOF
+    log_done "Default site oluşturuldu"
+    
+    # Default site'ı aktifle
+    a2ensite 000-default > /dev/null 2>&1
+    
+    # /var/www/html dizinini oluştur
+    mkdir -p /var/www/html
+    echo "<h1>ServerPanel</h1><p>Server is running.</p>" > /var/www/html/index.html
     
     systemctl enable apache2 > /dev/null 2>&1
     systemctl restart apache2
@@ -245,8 +292,22 @@ configure_mysql() {
     # Root şifresi
     local MYSQL_ROOT_PASS=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 16)
     
-    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASS}';" 2>/dev/null || true
-    mysql -e "FLUSH PRIVILEGES;" 2>/dev/null || true
+    # Debian/Ubuntu'da debian-sys-maint kullanarak şifre değiştir
+    log_progress "MySQL root şifresi ayarlanıyor"
+    if [[ -f /etc/mysql/debian.cnf ]]; then
+        mysql --defaults-file=/etc/mysql/debian.cnf -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASS}'; FLUSH PRIVILEGES;" 2>/dev/null
+    else
+        # Debian.cnf yoksa direkt dene
+        mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASS}'; FLUSH PRIVILEGES;" 2>/dev/null || true
+    fi
+    log_done "MySQL root şifresi ayarlandı"
+    
+    # Şifreyi doğrula
+    if mysql -uroot -p"${MYSQL_ROOT_PASS}" -e "SELECT 1;" > /dev/null 2>&1; then
+        log_info "MySQL bağlantısı doğrulandı ✓"
+    else
+        log_warn "MySQL şifre doğrulanamadı - manuel kontrol gerekebilir"
+    fi
     
     # Şifreyi kaydet
     mkdir -p /root/.serverpanel
@@ -291,12 +352,12 @@ install_phpmyadmin() {
     # phpMyAdmin otomatik kurulum için debconf ayarları
     log_progress "phpMyAdmin yapılandırılıyor"
     
-    # Debconf ile otomatik kurulum
+    # Debconf ile otomatik kurulum (Apache seçme - manuel yapılandıracağız)
     echo "phpmyadmin phpmyadmin/dbconfig-install boolean true" | debconf-set-selections
     echo "phpmyadmin phpmyadmin/app-password-confirm password ${MYSQL_PASS}" | debconf-set-selections
     echo "phpmyadmin phpmyadmin/mysql/admin-pass password ${MYSQL_PASS}" | debconf-set-selections
     echo "phpmyadmin phpmyadmin/mysql/app-pass password ${MYSQL_PASS}" | debconf-set-selections
-    echo "phpmyadmin phpmyadmin/reconfigure-webserver multiselect apache2" | debconf-set-selections
+    echo "phpmyadmin phpmyadmin/reconfigure-webserver multiselect" | debconf-set-selections
     
     log_done "Yapılandırma tamamlandı"
     
@@ -304,28 +365,22 @@ install_phpmyadmin() {
     DEBIAN_FRONTEND=noninteractive apt-get install -y phpmyadmin > /dev/null 2>&1
     log_done "phpMyAdmin kuruldu"
     
-    # Apache yapılandırması
-    if [[ ! -f /etc/apache2/conf-available/phpmyadmin.conf ]]; then
-        ln -sf /etc/phpmyadmin/apache.conf /etc/apache2/conf-available/phpmyadmin.conf
+    # phpMyAdmin config dosyası
+    if [[ -f /etc/phpmyadmin/config.inc.php ]]; then
+        # Blowfish secret ekle (güvenlik için)
+        local BLOWFISH_SECRET=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)
+        sed -i "s/\$cfg\['blowfish_secret'\] = ''/\$cfg['blowfish_secret'] = '${BLOWFISH_SECRET}'/" /etc/phpmyadmin/config.inc.php 2>/dev/null || true
     fi
-    a2enconf phpmyadmin > /dev/null 2>&1 || true
     
-    # Güvenlik: Sadece localhost'tan erişim için .htaccess
-    cat > /usr/share/phpmyadmin/.htaccess << 'EOF'
-# ServerPanel phpMyAdmin güvenlik ayarları
-<IfModule mod_authz_core.c>
-    # Apache 2.4
-    Require all granted
-</IfModule>
-<IfModule !mod_authz_core.c>
-    # Apache 2.2
-    Order Allow,Deny
-    Allow from all
-</IfModule>
-EOF
-    
-    # Apache yeniden başlat
+    # Apache yeniden başlat (000-default.conf'ta phpMyAdmin zaten yapılandırıldı)
     systemctl reload apache2
+    
+    # Test et
+    if curl -s http://localhost/phpmyadmin/ | grep -q "phpMyAdmin"; then
+        log_info "phpMyAdmin erişimi doğrulandı ✓"
+    else
+        log_warn "phpMyAdmin erişimi kontrol edilemedi"
+    fi
     
     log_info "phpMyAdmin URL: http://SUNUCU_IP/phpmyadmin"
     log_info "Veritabanı kullanıcıları ile giriş yapılabilir"
