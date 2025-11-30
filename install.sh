@@ -656,16 +656,16 @@ install_phpmyadmin() {
     fi
     log_info "MySQL bağlantısı aktif ✓"
     
-    # Debconf ayarları
-    log_progress "phpMyAdmin yapılandırılıyor"
-    echo "phpmyadmin phpmyadmin/dbconfig-install boolean true" | debconf-set-selections
-    echo "phpmyadmin phpmyadmin/app-password-confirm password ${MYSQL_PASS}" | debconf-set-selections
-    echo "phpmyadmin phpmyadmin/mysql/admin-pass password ${MYSQL_PASS}" | debconf-set-selections
-    echo "phpmyadmin phpmyadmin/mysql/app-pass password ${MYSQL_PASS}" | debconf-set-selections
-    echo "phpmyadmin phpmyadmin/reconfigure-webserver multiselect" | debconf-set-selections
-    log_done "Debconf ayarlandı"
-    
+    # phpMyAdmin kurulumu (debconf hataları bastırılıyor)
     log_progress "phpMyAdmin kuruluyor"
+    {
+        echo "phpmyadmin phpmyadmin/dbconfig-install boolean true"
+        echo "phpmyadmin phpmyadmin/app-password-confirm password ${MYSQL_PASS}"
+        echo "phpmyadmin phpmyadmin/mysql/admin-pass password ${MYSQL_PASS}"
+        echo "phpmyadmin phpmyadmin/mysql/app-pass password ${MYSQL_PASS}"
+        echo "phpmyadmin phpmyadmin/reconfigure-webserver multiselect"
+    } | debconf-set-selections 2>/dev/null || true
+    
     DEBIAN_FRONTEND=noninteractive apt-get install -y phpmyadmin > /dev/null 2>&1
     log_done "phpMyAdmin kuruldu"
     
@@ -878,12 +878,20 @@ install_serverpanel() {
     
     local FRONTEND_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/serverpanel-frontend.tar.gz"
     rm -f /tmp/frontend.tar.gz
+    local download_success=false
     
-    # wget ile indir (daha güvenilir)
+    # Yöntem 1: wget (verbose modda)
     if command -v wget &> /dev/null; then
-        wget -q --timeout=30 -O /tmp/frontend.tar.gz "$FRONTEND_URL" 2>/dev/null
-    else
-        curl -fsSL --connect-timeout 30 "$FRONTEND_URL" -o /tmp/frontend.tar.gz 2>/dev/null
+        if wget --no-verbose --timeout=60 --tries=3 -O /tmp/frontend.tar.gz "$FRONTEND_URL" 2>&1; then
+            download_success=true
+        fi
+    fi
+    
+    # Yöntem 2: curl (wget başarısız olduysa)
+    if [[ "$download_success" == "false" ]]; then
+        if curl -fSL --connect-timeout 30 --max-time 120 --retry 3 "$FRONTEND_URL" -o /tmp/frontend.tar.gz 2>&1; then
+            download_success=true
+        fi
     fi
     
     # Dosya kontrolü
@@ -894,14 +902,15 @@ install_serverpanel() {
             rm -f /tmp/frontend.tar.gz
             log_done "Frontend indirildi (${filesize} bytes)"
         else
-            log_warn "Frontend dosyası çok küçük: ${filesize} bytes - Manuel indirme gerekebilir"
+            log_warn "Frontend dosyası çok küçük: ${filesize} bytes"
+            log_info "Manuel indirme: wget -O /tmp/f.tar.gz '$FRONTEND_URL' && tar -xzf /tmp/f.tar.gz -C $INSTALL_DIR/public"
             rm -f /tmp/frontend.tar.gz
-            # Fallback: Boş index.html oluştur
-            echo "<html><body><h1>ServerPanel</h1><p>Frontend yüklenemedi. Manuel olarak yükleyin.</p></body></html>" > "$INSTALL_DIR/public/index.html"
+            echo "<html><body><h1>ServerPanel</h1><p>Frontend yüklenemedi.</p></body></html>" > "$INSTALL_DIR/public/index.html"
         fi
     else
-        log_warn "Frontend indirilemedi - Manuel indirme gerekebilir"
-        echo "<html><body><h1>ServerPanel</h1><p>Frontend yüklenemedi. Manuel olarak yükleyin.</p></body></html>" > "$INSTALL_DIR/public/index.html"
+        log_warn "Frontend indirilemedi"
+        log_info "Manuel indirme: wget -O /tmp/f.tar.gz '$FRONTEND_URL' && tar -xzf /tmp/f.tar.gz -C $INSTALL_DIR/public"
+        echo "<html><body><h1>ServerPanel</h1><p>Frontend yüklenemedi.</p></body></html>" > "$INSTALL_DIR/public/index.html"
     fi
 }
 
