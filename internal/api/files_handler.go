@@ -27,22 +27,11 @@ type FileInfo struct {
 	Extension   string    `json:"extension,omitempty"`
 }
 
-// getUserHomeDir returns the home directory for the current user
-func (h *Handler) getUserHomeDir(c *fiber.Ctx) (string, error) {
-	user := c.Locals("user").(*models.User)
-
-	// Admin can access any path (with restrictions)
-	if user.Role == models.RoleAdmin {
-		return h.cfg.HomeBaseDir, nil
-	}
-
-	// Regular users can only access their home directory
-	homeDir := filepath.Join(h.cfg.HomeBaseDir, user.Username)
-	if _, err := os.Stat(homeDir); os.IsNotExist(err) {
-		return "", fmt.Errorf("home directory not found")
-	}
-
-	return homeDir, nil
+// getUserFromContext gets user info from context (set by auth middleware)
+func getUserFromContext(c *fiber.Ctx) (username string, role string) {
+	username, _ = c.Locals("username").(string)
+	role, _ = c.Locals("role").(string)
+	return
 }
 
 // validatePath ensures the path is within the user's allowed directory
@@ -60,16 +49,16 @@ func (h *Handler) validatePath(basePath, requestedPath string) (string, error) {
 
 // ListFiles returns directory contents
 func (h *Handler) ListFiles(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 	path := c.Query("path", "/")
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		// Admin: path is relative to HomeBaseDir
 		basePath = h.cfg.HomeBaseDir
 	} else {
 		// User: path is relative to their home directory
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	fullPath, err := h.validatePath(basePath, path)
@@ -144,7 +133,7 @@ func (h *Handler) ListFiles(c *fiber.Ctx) error {
 
 // ReadFile returns file content
 func (h *Handler) ReadFile(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 	path := c.Query("path")
 
 	if path == "" {
@@ -152,10 +141,10 @@ func (h *Handler) ReadFile(c *fiber.Ctx) error {
 	}
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	fullPath, err := h.validatePath(basePath, path)
@@ -194,7 +183,7 @@ func (h *Handler) ReadFile(c *fiber.Ctx) error {
 
 // WriteFile creates or updates a file
 func (h *Handler) WriteFile(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 
 	var req struct {
 		Path    string `json:"path"`
@@ -210,10 +199,10 @@ func (h *Handler) WriteFile(c *fiber.Ctx) error {
 	}
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	fullPath, err := h.validatePath(basePath, req.Path)
@@ -232,7 +221,7 @@ func (h *Handler) WriteFile(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"success": false, "error": err.Error()})
 	}
 
-	log.Printf("📝 File written: %s by %s", req.Path, user.Username)
+	log.Printf("📝 File written: %s by %s", req.Path, username)
 
 	return c.JSON(fiber.Map{
 		"success": true,
@@ -242,7 +231,7 @@ func (h *Handler) WriteFile(c *fiber.Ctx) error {
 
 // CreateDirectory creates a new directory
 func (h *Handler) CreateDirectory(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 
 	var req struct {
 		Path string `json:"path"`
@@ -253,10 +242,10 @@ func (h *Handler) CreateDirectory(c *fiber.Ctx) error {
 	}
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	fullPath, err := h.validatePath(basePath, req.Path)
@@ -268,7 +257,7 @@ func (h *Handler) CreateDirectory(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"success": false, "error": err.Error()})
 	}
 
-	log.Printf("📁 Directory created: %s by %s", req.Path, user.Username)
+	log.Printf("📁 Directory created: %s by %s", req.Path, username)
 
 	return c.JSON(fiber.Map{
 		"success": true,
@@ -278,7 +267,7 @@ func (h *Handler) CreateDirectory(c *fiber.Ctx) error {
 
 // DeleteFiles deletes files or directories
 func (h *Handler) DeleteFiles(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 
 	var req struct {
 		Paths []string `json:"paths"`
@@ -293,10 +282,10 @@ func (h *Handler) DeleteFiles(c *fiber.Ctx) error {
 	}
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	var errors []string
@@ -318,7 +307,7 @@ func (h *Handler) DeleteFiles(c *fiber.Ctx) error {
 		}
 	}
 
-	log.Printf("🗑️ Files deleted by %s: %v", user.Username, req.Paths)
+	log.Printf("🗑️ Files deleted by %s: %v", username, req.Paths)
 
 	if len(errors) > 0 {
 		return c.JSON(fiber.Map{
@@ -335,7 +324,7 @@ func (h *Handler) DeleteFiles(c *fiber.Ctx) error {
 
 // RenameFile renames a file or directory
 func (h *Handler) RenameFile(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 
 	var req struct {
 		OldPath string `json:"old_path"`
@@ -347,10 +336,10 @@ func (h *Handler) RenameFile(c *fiber.Ctx) error {
 	}
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	oldFullPath, err := h.validatePath(basePath, req.OldPath)
@@ -367,7 +356,7 @@ func (h *Handler) RenameFile(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"success": false, "error": err.Error()})
 	}
 
-	log.Printf("📝 File renamed by %s: %s -> %s", user.Username, req.OldPath, req.NewPath)
+	log.Printf("📝 File renamed by %s: %s -> %s", username, req.OldPath, req.NewPath)
 
 	return c.JSON(fiber.Map{
 		"success": true,
@@ -377,7 +366,7 @@ func (h *Handler) RenameFile(c *fiber.Ctx) error {
 
 // CopyFiles copies files or directories
 func (h *Handler) CopyFiles(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 
 	var req struct {
 		Sources     []string `json:"sources"`
@@ -389,10 +378,10 @@ func (h *Handler) CopyFiles(c *fiber.Ctx) error {
 	}
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	destPath, err := h.validatePath(basePath, req.Destination)
@@ -423,7 +412,7 @@ func (h *Handler) CopyFiles(c *fiber.Ctx) error {
 
 // MoveFiles moves files or directories
 func (h *Handler) MoveFiles(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 
 	var req struct {
 		Sources     []string `json:"sources"`
@@ -435,10 +424,10 @@ func (h *Handler) MoveFiles(c *fiber.Ctx) error {
 	}
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	destPath, err := h.validatePath(basePath, req.Destination)
@@ -469,14 +458,14 @@ func (h *Handler) MoveFiles(c *fiber.Ctx) error {
 
 // UploadFiles handles file uploads
 func (h *Handler) UploadFiles(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 	path := c.FormValue("path", "/")
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	destPath, err := h.validatePath(basePath, path)
@@ -508,7 +497,7 @@ func (h *Handler) UploadFiles(c *fiber.Ctx) error {
 		}
 	}
 
-	log.Printf("📤 Files uploaded by %s to %s: %v", user.Username, path, uploaded)
+	log.Printf("📤 Files uploaded by %s to %s: %v", username, path, uploaded)
 
 	if len(errors) > 0 {
 		return c.JSON(fiber.Map{
@@ -527,7 +516,7 @@ func (h *Handler) UploadFiles(c *fiber.Ctx) error {
 
 // DownloadFile serves a file for download
 func (h *Handler) DownloadFile(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 	path := c.Query("path")
 
 	if path == "" {
@@ -535,10 +524,10 @@ func (h *Handler) DownloadFile(c *fiber.Ctx) error {
 	}
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	fullPath, err := h.validatePath(basePath, path)
@@ -569,7 +558,7 @@ func (h *Handler) DownloadFile(c *fiber.Ctx) error {
 
 // CompressFiles creates a zip archive
 func (h *Handler) CompressFiles(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 
 	var req struct {
 		Paths       []string `json:"paths"`
@@ -581,10 +570,10 @@ func (h *Handler) CompressFiles(c *fiber.Ctx) error {
 	}
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	destPath, err := h.validatePath(basePath, req.Destination)
@@ -619,7 +608,7 @@ func (h *Handler) CompressFiles(c *fiber.Ctx) error {
 		}
 	}
 
-	log.Printf("📦 Files compressed by %s: %v -> %s", user.Username, req.Paths, req.Destination)
+	log.Printf("📦 Files compressed by %s: %v -> %s", username, req.Paths, req.Destination)
 
 	return c.JSON(fiber.Map{
 		"success": true,
@@ -630,7 +619,7 @@ func (h *Handler) CompressFiles(c *fiber.Ctx) error {
 
 // ExtractFiles extracts a zip archive
 func (h *Handler) ExtractFiles(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 
 	var req struct {
 		Path        string `json:"path"`
@@ -642,10 +631,10 @@ func (h *Handler) ExtractFiles(c *fiber.Ctx) error {
 	}
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	zipPath, err := h.validatePath(basePath, req.Path)
@@ -698,7 +687,7 @@ func (h *Handler) ExtractFiles(c *fiber.Ctx) error {
 		rc.Close()
 	}
 
-	log.Printf("📦 Files extracted by %s: %s -> %s", user.Username, req.Path, req.Destination)
+	log.Printf("📦 Files extracted by %s: %s -> %s", username, req.Path, req.Destination)
 
 	return c.JSON(fiber.Map{
 		"success": true,
@@ -708,7 +697,7 @@ func (h *Handler) ExtractFiles(c *fiber.Ctx) error {
 
 // GetFileInfo returns detailed file information
 func (h *Handler) GetFileInfo(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	username, role := getUserFromContext(c)
 	path := c.Query("path")
 
 	if path == "" {
@@ -716,10 +705,10 @@ func (h *Handler) GetFileInfo(c *fiber.Ctx) error {
 	}
 
 	var basePath string
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		basePath = h.cfg.HomeBaseDir
 	} else {
-		basePath = filepath.Join(h.cfg.HomeBaseDir, user.Username)
+		basePath = filepath.Join(h.cfg.HomeBaseDir, username)
 	}
 
 	fullPath, err := h.validatePath(basePath, path)
