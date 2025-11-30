@@ -1,0 +1,137 @@
+import { ReactNode } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/Button';
+import {
+  Server,
+  LayoutDashboard,
+  Globe,
+  Database,
+  Mail,
+  Users,
+  Package,
+  Settings,
+  LogOut,
+  FolderOpen,
+  Shield,
+  HardDrive,
+  Clock,
+} from 'lucide-react';
+
+interface LayoutProps {
+  children: ReactNode;
+}
+
+const menuItems = [
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+  { icon: Globe, label: 'Domainler', href: '/domains' },
+  { icon: FolderOpen, label: 'Dosya Yöneticisi', href: '/files', disabled: true },
+  { icon: Database, label: 'Veritabanları', href: '/databases', disabled: true },
+  { icon: Mail, label: 'E-posta', href: '/email', disabled: true },
+  { icon: Shield, label: 'SSL/TLS', href: '/ssl', disabled: true },
+  { icon: HardDrive, label: 'Backup', href: '/backup', disabled: true },
+  { icon: Clock, label: 'Cron Jobs', href: '/cron', disabled: true },
+];
+
+const adminMenuItems = [
+  { icon: Users, label: 'Hosting Hesapları', href: '/accounts' },
+  { icon: Package, label: 'Paketler', href: '/packages', disabled: true },
+  { icon: Settings, label: 'Ayarlar', href: '/settings', disabled: true },
+];
+
+export default function Layout({ children }: LayoutProps) {
+  const { user, logout } = useAuth();
+  const location = useLocation();
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Sidebar */}
+      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-slate-200 z-50 flex flex-col">
+        {/* Logo */}
+        <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-200">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+            <Server className="w-5 h-5 text-white" />
+          </div>
+          <span className="font-bold text-lg">ServerPanel</span>
+        </div>
+
+        {/* Menu */}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-2">
+            Hosting
+          </p>
+          {menuItems.map((item) => (
+            <Link
+              key={item.href}
+              to={item.disabled ? '#' : item.href}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname === item.href
+                  ? 'bg-blue-50 text-blue-600'
+                  : item.disabled
+                  ? 'text-slate-300 cursor-not-allowed'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+              onClick={(e) => item.disabled && e.preventDefault()}
+            >
+              <item.icon className="w-5 h-5" />
+              {item.label}
+              {item.disabled && (
+                <span className="ml-auto text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded">
+                  Yakında
+                </span>
+              )}
+            </Link>
+          ))}
+
+          {user?.role === 'admin' && (
+            <>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-2 mt-6">
+                Yönetim
+              </p>
+              {adminMenuItems.map((item) => (
+                <Link
+                  key={item.href}
+                  to={item.disabled ? '#' : item.href}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    location.pathname === item.href
+                      ? 'bg-blue-50 text-blue-600'
+                      : item.disabled
+                      ? 'text-slate-300 cursor-not-allowed'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                  onClick={(e) => item.disabled && e.preventDefault()}
+                >
+                  <item.icon className="w-5 h-5" />
+                  {item.label}
+                  {item.disabled && (
+                    <span className="ml-auto text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded">
+                      Yakında
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </>
+          )}
+        </nav>
+
+        {/* User */}
+        <div className="p-4 border-t border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">{user?.username}</p>
+              <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={logout} title="Çıkış Yap">
+              <LogOut className="w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="pl-64">
+        <div className="p-8">{children}</div>
+      </main>
+    </div>
+  );
+}

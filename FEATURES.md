@@ -1,0 +1,649 @@
+# ServerPanel - Özellik Yol Haritası
+
+Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özellikleri listeler.
+
+---
+
+## 📊 Mevcut Durum Özeti
+
+| Kategori | cPanel/WHM | ServerPanel | Tamamlanma |
+|----------|------------|-------------|------------|
+| Authentication | ✅ | ✅ | %100 |
+| Dashboard | ✅ | ✅ | %80 |
+| Kullanıcı Yönetimi | ✅ | ⚠️ Temel | %30 |
+| Domain Yönetimi | ✅ | ⚠️ API var | %20 |
+| DNS Yönetimi | ✅ | ❌ | %0 |
+| E-posta Yönetimi | ✅ | ⚠️ API var | %10 |
+| Veritabanı Yönetimi | ✅ | ⚠️ API var | %20 |
+| Dosya Yönetimi | ✅ | ❌ | %0 |
+| FTP Yönetimi | ✅ | ❌ | %0 |
+| SSL/TLS | ✅ | ❌ | %0 |
+| Backup | ✅ | ❌ | %0 |
+| Cron Jobs | ✅ | ❌ | %0 |
+| Güvenlik | ✅ | ⚠️ Temel | %20 |
+| Metrics/Logs | ✅ | ⚠️ Temel | %15 |
+| Reseller Sistemi | ✅ | ⚠️ Rol var | %10 |
+
+---
+
+## 🔐 1. AUTHENTICATION & GÜVENLİK
+
+### Mevcut ✅
+- [x] JWT tabanlı authentication
+- [x] Rol bazlı erişim (Admin/Reseller/User)
+- [x] Login/Logout
+
+### Eksik Özellikler
+- [ ] **İki Faktörlü Kimlik Doğrulama (2FA)**
+  - TOTP (Google Authenticator, Authy)
+  - SMS doğrulama
+  - Yedek kodlar
+- [ ] **Şifre Politikaları**
+  - Minimum uzunluk
+  - Karmaşıklık gereksinimleri
+  - Şifre geçmişi
+  - Otomatik kilitleme
+- [ ] **Session Yönetimi**
+  - Aktif oturumları görme
+  - Uzaktan oturum kapatma
+  - Session timeout ayarları
+- [ ] **IP Kısıtlamaları**
+  - Beyaz liste
+  - Kara liste
+  - Ülke bazlı engelleme
+- [ ] **API Token Yönetimi**
+  - Token oluşturma/silme
+  - İzin bazlı tokenlar
+  - Token son kullanma tarihi
+- [ ] **Güvenlik Logları**
+  - Başarısız giriş denemeleri
+  - Şüpheli aktiviteler
+  - Brute-force koruması (fail2ban entegrasyonu)
+
+---
+
+## 👥 2. KULLANICI YÖNETİMİ
+
+### Mevcut ✅
+- [x] Kullanıcı listeleme
+- [x] Kullanıcı oluşturma/güncelleme/silme
+- [x] Rol atama (Admin/Reseller/User)
+
+### Eksik Özellikler
+- [ ] **Paket Atama**
+  - Kullanıcıya hosting paketi atama
+  - Kota yönetimi
+  - Kaynak limitleri
+- [ ] **Kullanıcı Detay Sayfası**
+  - Kullanıcının tüm kaynaklarını görme
+  - Disk kullanımı
+  - Bandwidth kullanımı
+- [ ] **Toplu İşlemler**
+  - Çoklu kullanıcı askıya alma
+  - Çoklu paket değiştirme
+  - CSV import/export
+- [ ] **Kullanıcı Arama & Filtreleme**
+  - Domain'e göre arama
+  - Duruma göre filtreleme
+  - Pakete göre filtreleme
+- [ ] **Reseller Hiyerarşisi**
+  - Alt kullanıcıları görme
+  - Reseller kota limitleri
+  - Özel fiyatlandırma
+- [ ] **Hesap Askıya Alma/Aktifleştirme**
+  - Geçici askıya alma
+  - Otomatik askıya alma (kota aşımı)
+  - Ödeme gecikme entegrasyonu
+
+---
+
+## 🌐 3. DOMAİN YÖNETİMİ
+
+### Mevcut ✅
+- [x] Domain listeleme API
+- [x] Domain ekleme/silme API
+
+### Eksik Özellikler
+- [ ] **Domain Yönetim Arayüzü**
+  - Domain listesi sayfası
+  - Domain ekleme formu
+  - Domain detay sayfası
+- [ ] **Addon Domains**
+  - Ana domain'e ek domain ekleme
+  - Ayrı document root
+- [ ] **Subdomain Yönetimi**
+  - Subdomain oluşturma
+  - Wildcard subdomain
+  - Subdomain yönlendirme
+- [ ] **Domain Alias (Parked Domains)**
+  - Aynı içeriği farklı domain'de gösterme
+- [ ] **Domain Yönlendirme**
+  - 301/302 redirect
+  - Wildcard redirect
+  - Koşullu yönlendirme
+- [ ] **Document Root Yönetimi**
+  - Klasör seçimi
+  - Otomatik klasör oluşturma
+- [ ] **NGINX/Apache Konfigürasyonu**
+  - Virtual host oluşturma
+  - PHP sürüm seçimi
+  - Custom direktifler
+
+---
+
+## 🔤 4. DNS YÖNETİMİ
+
+### Mevcut ❌
+Henüz yok
+
+### Eklenecek Özellikler
+- [ ] **Zone Editor**
+  - A, AAAA, CNAME, MX, TXT, NS, SRV, CAA kayıtları
+  - TTL yönetimi
+  - Zone dosyası import/export
+- [ ] **DNS Şablonları**
+  - Varsayılan kayıt şablonları
+  - Hızlı kurulum
+- [ ] **DNS Cluster**
+  - Birden fazla DNS sunucu desteği
+  - Zone senkronizasyonu
+- [ ] **DNSSEC**
+  - DNSSEC aktivasyonu
+  - Anahtar yönetimi
+- [ ] **DNS Propagation Kontrolü**
+  - Propagation durumu
+  - DNS sorgu testi
+- [ ] **Reverse DNS (PTR)**
+  - PTR kayıt yönetimi
+- [ ] **Dynamic DNS**
+  - API ile DNS güncelleme
+  - Dinamik IP desteği
+
+---
+
+## 📧 5. E-POSTA YÖNETİMİ
+
+### Mevcut ⚠️
+- [x] E-posta hesabı API (temel)
+
+### Eksik Özellikler
+- [ ] **E-posta Hesapları Arayüzü**
+  - Hesap listesi
+  - Hesap oluşturma/silme
+  - Kota yönetimi
+  - Şifre değiştirme
+- [ ] **Webmail Entegrasyonu**
+  - Roundcube
+  - Rainloop
+  - SnappyMail
+- [ ] **E-posta Yönlendirme (Forwarders)**
+  - Tek adrese yönlendirme
+  - Çoklu yönlendirme
+  - Pipe to program
+- [ ] **Otomatik Yanıtlayıcı (Autoresponder)**
+  - Tatil mesajı
+  - Zamanlı yanıtlar
+- [ ] **E-posta Filtreleri**
+  - Spam filtreleme
+  - Kural bazlı filtreleme
+  - SpamAssassin entegrasyonu
+- [ ] **Mailing Lists**
+  - Liste oluşturma
+  - Üye yönetimi
+  - Mailman entegrasyonu
+- [ ] **E-posta Routing**
+  - Local/Remote mail exchanger
+  - Backup MX
+- [ ] **DKIM/SPF/DMARC**
+  - Otomatik yapılandırma
+  - Key yönetimi
+- [ ] **E-posta İstatistikleri**
+  - Gönderim/alım sayıları
+  - Bounce oranları
+  - Queue durumu
+- [ ] **BoxTrapper**
+  - Challenge-response spam koruması
+- [ ] **Track Delivery**
+  - E-posta takibi
+  - Log analizi
+
+---
+
+## 🗄️ 6. VERİTABANI YÖNETİMİ
+
+### Mevcut ⚠️
+- [x] Veritabanı listeleme API
+- [x] Veritabanı oluşturma/silme API
+
+### Eksik Özellikler
+- [ ] **Veritabanı Arayüzü**
+  - Veritabanı listesi sayfası
+  - Oluşturma formu
+  - Boyut bilgisi
+- [ ] **MySQL/MariaDB Yönetimi**
+  - Veritabanı oluşturma
+  - Kullanıcı oluşturma
+  - Yetki yönetimi
+  - Remote access
+- [ ] **PostgreSQL Desteği**
+  - Veritabanı oluşturma
+  - Kullanıcı yönetimi
+- [ ] **phpMyAdmin Entegrasyonu**
+  - Tek tıkla erişim
+  - SSO (Single Sign-On)
+- [ ] **phpPgAdmin Entegrasyonu**
+  - PostgreSQL için web arayüzü
+- [ ] **Veritabanı Yedekleme**
+  - Manuel backup
+  - Zamanlanmış backup
+  - Restore
+- [ ] **Remote Database**
+  - Uzak bağlantı izinleri
+  - IP whitelist
+- [ ] **Veritabanı İstatistikleri**
+  - Boyut takibi
+  - Sorgu istatistikleri
+
+---
+
+## 📁 7. DOSYA YÖNETİMİ
+
+### Mevcut ❌
+Henüz yok
+
+### Eklenecek Özellikler
+- [ ] **Web Tabanlı File Manager**
+  - Dosya/klasör listeleme
+  - Dosya yükleme (drag & drop)
+  - Dosya indirme
+  - Dosya düzenleme (code editor)
+  - Dosya kopyalama/taşıma
+  - Dosya silme
+  - Yeniden adlandırma
+  - Zip/Unzip
+  - Dosya arama
+- [ ] **Dosya İzinleri (Permissions)**
+  - chmod arayüzü
+  - chown desteği
+  - Recursive izin değişikliği
+- [ ] **Directory Privacy**
+  - .htpasswd koruması
+  - Klasör şifreleme
+- [ ] **Disk Usage Analizi**
+  - Klasör bazlı kullanım
+  - En büyük dosyalar
+  - Görsel grafik
+- [ ] **Hotlink Protection**
+  - Resim/dosya koruması
+  - İzin verilen domainler
+- [ ] **Index Ayarları**
+  - Directory listing
+  - Custom index sayfası
+- [ ] **MIME Types**
+  - Özel MIME tanımları
+- [ ] **Image Manager**
+  - Thumbnail oluşturma
+  - Resim boyutlandırma
+  - Format dönüştürme
+
+---
+
+## 📤 8. FTP YÖNETİMİ
+
+### Mevcut ❌
+Henüz yok
+
+### Eklenecek Özellikler
+- [ ] **FTP Hesapları**
+  - Hesap oluşturma
+  - Şifre yönetimi
+  - Directory kısıtlaması
+  - Kota belirleme
+- [ ] **FTP İstatistikleri**
+  - Bağlantı logları
+  - Transfer istatistikleri
+- [ ] **Anonymous FTP**
+  - Anonim erişim ayarları
+- [ ] **SFTP Desteği**
+  - SSH üzerinden FTP
+- [ ] **FTP Session Yönetimi**
+  - Aktif bağlantıları görme
+  - Bağlantı sonlandırma
+
+---
+
+## 🔒 9. SSL/TLS YÖNETİMİ
+
+### Mevcut ❌
+Henüz yok
+
+### Eklenecek Özellikler
+- [ ] **SSL Sertifika Yönetimi**
+  - Sertifika yükleme
+  - Private key yönetimi
+  - CSR oluşturma
+  - Sertifika görüntüleme
+- [ ] **Let's Encrypt (AutoSSL)**
+  - Otomatik sertifika alma
+  - Otomatik yenileme
+  - Wildcard SSL
+- [ ] **SSL Kurulumu**
+  - Domain'e SSL atama
+  - SNI desteği
+- [ ] **SSL Durumu**
+  - Sertifika son kullanma
+  - Uyarı sistemi
+- [ ] **Force HTTPS**
+  - Otomatik yönlendirme
+  - HSTS ayarları
+
+---
+
+## 💾 10. YEDEKLEME (BACKUP)
+
+### Mevcut ❌
+Henüz yok
+
+### Eklenecek Özellikler
+- [ ] **Manuel Backup**
+  - Full backup
+  - Home directory backup
+  - Database backup
+  - E-posta backup
+- [ ] **Zamanlanmış Backup**
+  - Günlük/Haftalık/Aylık
+  - Retention policy
+- [ ] **Backup Hedefleri**
+  - Lokal disk
+  - Remote FTP/SFTP
+  - Amazon S3
+  - Google Cloud Storage
+  - Backblaze B2
+- [ ] **Restore**
+  - Full restore
+  - Kısmi restore
+  - Dosya bazlı restore
+- [ ] **Backup İstatistikleri**
+  - Backup geçmişi
+  - Boyut bilgisi
+  - Durum raporları
+
+---
+
+## ⏰ 11. CRON JOBS
+
+### Mevcut ❌
+Henüz yok
+
+### Eklenecek Özellikler
+- [ ] **Cron Job Yönetimi**
+  - Job oluşturma
+  - Zamanlama editörü
+  - Komut girişi
+- [ ] **Cron Şablonları**
+  - Yaygın zamanlamalar
+  - Kolay seçim
+- [ ] **Cron Logları**
+  - Çalışma geçmişi
+  - Hata logları
+  - E-posta bildirimi
+
+---
+
+## 📊 12. METRİKLER & LOGLAR
+
+### Mevcut ⚠️
+- [x] Temel sistem istatistikleri (CPU, RAM, Disk)
+
+### Eksik Özellikler
+- [ ] **Bandwidth İstatistikleri**
+  - Günlük/Aylık kullanım
+  - Domain bazlı
+  - Grafikler
+- [ ] **Ziyaretçi İstatistikleri**
+  - AWStats entegrasyonu
+  - Webalizer
+  - Analog Stats
+- [ ] **Error Logs**
+  - Apache/Nginx hata logları
+  - PHP hataları
+  - Canlı log takibi
+- [ ] **Access Logs**
+  - Ham erişim logları
+  - Log analizi
+  - IP bazlı filtreleme
+- [ ] **Resource Usage**
+  - CPU kullanımı (process bazlı)
+  - Memory kullanımı
+  - I/O istatistikleri
+- [ ] **Uptime Monitoring**
+  - Servis durumu
+  - Uptime geçmişi
+  - Uyarı sistemi
+
+---
+
+## 🛡️ 13. GÜVENLİK ÖZELLİKLERİ
+
+### Mevcut ⚠️
+- [x] Temel authentication
+
+### Eksik Özellikler
+- [ ] **IP Blocker**
+  - Manuel IP engelleme
+  - CIDR desteği
+  - Otomatik engelleme
+- [ ] **ModSecurity**
+  - WAF aktivasyonu
+  - Kural yönetimi
+  - Log görüntüleme
+- [ ] **Imunify360/ClamAV**
+  - Malware tarama
+  - Otomatik temizleme
+- [ ] **SSH Access**
+  - SSH key yönetimi
+  - Shell değiştirme
+- [ ] **Leech Protection**
+  - Şifre sızıntı koruması
+- [ ] **Firewall Yönetimi**
+  - CSF/iptables entegrasyonu
+  - Port yönetimi
+  - Rate limiting
+
+---
+
+## 🔧 14. SUNUCU YÖNETİMİ (WHM)
+
+### Mevcut ⚠️
+- [x] Servis listesi API
+- [x] Servis restart API
+
+### Eksik Özellikler
+- [ ] **Servis Yönetimi Arayüzü**
+  - Servis durumları
+  - Start/Stop/Restart
+  - Otomatik başlatma
+- [ ] **PHP Yönetimi**
+  - Çoklu PHP sürümü
+  - PHP-FPM yönetimi
+  - php.ini editörü
+  - PHP extension yönetimi
+- [ ] **Apache/NGINX Yönetimi**
+  - Konfigürasyon editörü
+  - Module yönetimi
+  - Virtual host yönetimi
+- [ ] **MySQL/MariaDB Yönetimi**
+  - my.cnf editörü
+  - Performans ayarları
+  - Slow query log
+- [ ] **Mail Server Yönetimi**
+  - Exim/Postfix konfigürasyonu
+  - Queue yönetimi
+  - Mail log analizi
+- [ ] **Sistem Güncelleme**
+  - OS güncellemeleri
+  - Paket yönetimi
+- [ ] **Server Bilgisi**
+  - Donanım bilgisi
+  - OS bilgisi
+  - Yüklü yazılımlar
+
+---
+
+## 📦 15. PAKET YÖNETİMİ
+
+### Mevcut ✅
+- [x] Paket listeleme
+- [x] Paket oluşturma/güncelleme/silme
+
+### Eksik Özellikler
+- [ ] **Paket Yönetimi Arayüzü**
+  - Paket listesi sayfası
+  - Detaylı kota ayarları
+- [ ] **Gelişmiş Kota Seçenekleri**
+  - Inode limiti
+  - MySQL veritabanı sayısı
+  - PostgreSQL veritabanı sayısı
+  - Email hesap sayısı
+  - Mailing list sayısı
+  - Subdomain sayısı
+  - Addon domain sayısı
+  - FTP hesap sayısı
+  - Max email gönderimi/saat
+- [ ] **Özellik Listeleri**
+  - cPanel özellik seçimi
+  - Modül bazlı erişim
+- [ ] **Reseller Paketleri**
+  - Reseller kotaları
+  - Overselling ayarları
+
+---
+
+## 🔄 16. MİGRASYON
+
+### Mevcut ❌
+Henüz yok
+
+### Eklenecek Özellikler
+- [ ] **cPanel Migration**
+  - cPanel backup import
+  - Hesap transferi
+- [ ] **Plesk Migration**
+  - Plesk backup import
+- [ ] **DirectAdmin Migration**
+  - DirectAdmin backup import
+- [ ] **Manuel Migration**
+  - Dosya yükleme
+  - Veritabanı import
+  - DNS import
+
+---
+
+## 🎨 17. TEMA & ÖZELLEŞTİRME
+
+### Mevcut ⚠️
+- [x] Temel dashboard
+
+### Eksik Özellikler
+- [ ] **Tema Sistemi**
+  - Açık/Koyu mod
+  - Renk şemaları
+- [ ] **Branding**
+  - Logo değiştirme
+  - Favicon
+  - Şirket adı
+- [ ] **Dil Desteği**
+  - Çoklu dil
+  - Türkçe
+  - İngilizce
+- [ ] **Dashboard Özelleştirme**
+  - Widget düzeni
+  - Hızlı erişim kısayolları
+
+---
+
+## 📱 18. API & ENTEGRASYONLAR
+
+### Mevcut ⚠️
+- [x] REST API (temel)
+
+### Eksik Özellikler
+- [ ] **API Dokümantasyonu**
+  - Swagger/OpenAPI
+  - Interaktif docs
+- [ ] **Webhook Desteği**
+  - Event bazlı bildirimler
+  - Custom webhook URL
+- [ ] **WHMCS Entegrasyonu**
+  - Provisioning modülü
+  - SSO desteği
+- [ ] **Cloudflare Entegrasyonu**
+  - DNS senkronizasyonu
+  - Proxy ayarları
+- [ ] **WordPress Toolkit**
+  - WP kurulumu
+  - WP yönetimi
+  - Güvenlik taraması
+
+---
+
+## 🚀 GELİŞTİRME SIRASI (Gerçek Kullanım Öncelikli)
+
+Bir hosting müşterisinin temel ihtiyaçlarına göre sıralandı:
+
+### 🎯 Faz 1 - MVP (Minimum Viable Product)
+> Müşteri website yayınlayabilmeli
+
+| # | Özellik | Neden Gerekli? | Durum |
+|---|---------|----------------|-------|
+| 1 | ✅ Authentication & Dashboard | Panele giriş | ✅ Tamam |
+| 2 | Domain Yönetimi UI | Website adresi | 🔄 Sırada |
+| 3 | Dosya Yöneticisi | Site dosyalarını yükleme | ⏳ Bekliyor |
+| 4 | Veritabanı UI + phpMyAdmin | WordPress vb. kurulum | ⏳ Bekliyor |
+| 5 | SSL/Let's Encrypt | HTTPS zorunlu | ⏳ Bekliyor |
+
+### 🎯 Faz 2 - Temel Hosting
+> Müşteri e-posta kullanabilmeli, yedek alabilmeli
+
+| # | Özellik | Neden Gerekli? | Durum |
+|---|---------|----------------|-------|
+| 6 | E-posta Hesapları UI | info@domain.com | ⏳ Bekliyor |
+| 7 | Webmail (Roundcube) | Tarayıcıdan mail okuma | ⏳ Bekliyor |
+| 8 | FTP Hesapları | Büyük dosya yükleme | ⏳ Bekliyor |
+| 9 | Backup & Restore | Veri kaybını önleme | ⏳ Bekliyor |
+| 10 | DNS Zone Editor | Mail/subdomain ayarları | ⏳ Bekliyor |
+
+### 🎯 Faz 3 - Profesyonel Hosting
+> Gelişmiş müşteriler için
+
+| # | Özellik | Neden Gerekli? | Durum |
+|---|---------|----------------|-------|
+| 11 | Cron Jobs | Zamanlanmış görevler | ⏳ Bekliyor |
+| 12 | PHP Sürüm Seçimi | Farklı PHP versiyonları | ⏳ Bekliyor |
+| 13 | SSH/Terminal Erişimi | Geliştiriciler için | ⏳ Bekliyor |
+| 14 | Subdomain Yönetimi | blog.domain.com | ⏳ Bekliyor |
+| 15 | Error Logs | Hata ayıklama | ⏳ Bekliyor |
+
+### 🎯 Faz 4 - Reseller & Enterprise
+> Hosting satışı yapanlar için
+
+| # | Özellik | Durum |
+|---|---------|-------|
+| 16 | Paket Yönetimi UI | ⏳ Bekliyor |
+| 17 | Reseller Panel | ⏳ Bekliyor |
+| 18 | WHMCS Entegrasyonu | ⏳ Bekliyor |
+| 19 | Çoklu Sunucu | ⏳ Bekliyor |
+| 20 | Migration Tools | ⏳ Bekliyor |
+
+---
+
+## 📈 İlerleme Durumu
+
+- **Tamamlanan**: 8 özellik
+- **Devam Eden**: 0 özellik
+- **Bekleyen**: 150+ özellik
+- **Toplam İlerleme**: ~%5
+
+---
+
+*Son güncelleme: 30 Kasım 2025*
