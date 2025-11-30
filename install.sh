@@ -36,7 +36,7 @@ RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}"
 
 # Sayaçlar
 STEP_CURRENT=0
-STEP_TOTAL=10
+STEP_TOTAL=12
 ERRORS=0
 WARNINGS=0
 START_TIME=$(date +%s)
@@ -281,6 +281,42 @@ configure_php() {
     log_info "PHP-FPM durumu: $(systemctl is-active php${PHP_VERSION}-fpm)"
 }
 
+install_go() {
+    log_step "Go Programlama Dili Kuruluyor"
+    
+    local GO_VERSION="1.21.5"
+    
+    if command -v /usr/local/go/bin/go &> /dev/null; then
+        log_info "Go zaten kurulu: $(/usr/local/go/bin/go version)"
+        return
+    fi
+    
+    log_progress "Go ${GO_VERSION} indiriliyor"
+    wget -q "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -O /tmp/go.tar.gz
+    log_done "Go indirildi"
+    
+    log_progress "Go kuruluyor"
+    rm -rf /usr/local/go
+    tar -C /usr/local -xzf /tmp/go.tar.gz
+    rm /tmp/go.tar.gz
+    log_done "Go kuruldu"
+    
+    export PATH=$PATH:/usr/local/go/bin
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> /etc/profile
+    
+    log_info "Go sürümü: $(/usr/local/go/bin/go version | awk '{print $3}')"
+}
+
+install_build_tools() {
+    log_step "Derleme Araçları Kuruluyor"
+    
+    log_progress "build-essential kuruluyor"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential > /dev/null 2>&1
+    log_done "build-essential kuruldu"
+    
+    log_info "GCC: $(gcc --version | head -1)"
+}
+
 install_serverpanel() {
     log_step "ServerPanel Kuruluyor"
     
@@ -289,17 +325,30 @@ install_serverpanel() {
     mkdir -p $DATA_DIR
     mkdir -p $LOG_DIR
     
-    # Backend binary indir
-    log_progress "Backend indiriliyor"
-    curl -sSL "${RELEASE_URL}/serverpanel-linux-amd64" -o $INSTALL_DIR/serverpanel
-    chmod +x $INSTALL_DIR/serverpanel
-    log_done "Backend indirildi"
+    # Kaynak kodu indir
+    log_progress "Kaynak kod indiriliyor"
+    if [[ -d "$INSTALL_DIR/.git" ]]; then
+        cd $INSTALL_DIR && git pull > /dev/null 2>&1
+    else
+        rm -rf $INSTALL_DIR
+        git clone --depth 1 https://github.com/${GITHUB_REPO}.git $INSTALL_DIR > /dev/null 2>&1
+    fi
+    log_done "Kaynak kod indirildi"
     
-    # Frontend indir
+    cd $INSTALL_DIR
+    
+    # Backend derle (CGO_ENABLED=1 ile SQLite için)
+    log_progress "Backend derleniyor (bu biraz sürebilir)"
+    export PATH=$PATH:/usr/local/go/bin
+    CGO_ENABLED=1 /usr/local/go/bin/go build -o serverpanel ./cmd/panel > /dev/null 2>&1
+    log_done "Backend derlendi"
+    
+    # Frontend indir (hazır build)
     log_progress "Frontend indiriliyor"
+    mkdir -p $INSTALL_DIR/public
     curl -sSL "${RELEASE_URL}/serverpanel-frontend.tar.gz" -o /tmp/frontend.tar.gz
-    tar -xzf /tmp/frontend.tar.gz -C $INSTALL_DIR/public
-    rm /tmp/frontend.tar.gz
+    tar -xzf /tmp/frontend.tar.gz -C $INSTALL_DIR/public 2>/dev/null || true
+    rm -f /tmp/frontend.tar.gz
     log_done "Frontend indirildi"
     
     log_info "Binary: $INSTALL_DIR/serverpanel"
@@ -418,6 +467,8 @@ main() {
     configure_mysql
     configure_dns
     configure_php
+    install_build_tools
+    install_go
     install_serverpanel
     create_service
     
