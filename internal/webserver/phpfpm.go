@@ -25,7 +25,7 @@ type PHPFPMConfig struct {
 // NewPHPFPMManager creates a new PHP-FPM manager
 func NewPHPFPMManager(simulateMode bool, basePath string, phpVersion string) *PHPFPMManager {
 	if phpVersion == "" {
-		phpVersion = "8.2"
+		phpVersion = "8.1" // Default to 8.1 for Ubuntu 22.04
 	}
 	return &PHPFPMManager{
 		simulateMode: simulateMode,

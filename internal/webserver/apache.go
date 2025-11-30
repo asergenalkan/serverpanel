@@ -71,7 +71,7 @@ func (d *ApacheDriver) generateConfig(config VhostConfig) string {
 
 	phpVersion := config.PHPVersion
 	if phpVersion == "" {
-		phpVersion = "8.2"
+		phpVersion = "8.1" // Default to 8.1 for Ubuntu 22.04
 	}
 
 	// PHP-FPM socket path
