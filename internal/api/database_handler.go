@@ -607,12 +607,13 @@ func (h *Handler) GetPhpMyAdminURL(c *fiber.Ctx) error {
 	token := hex.EncodeToString(tokenBytes)
 
 	// Store token in memory
+	// Token süresini 5 dakika yapıyoruz çünkü SignonScript her request'te çağrılıyor
 	pmaMutex.Lock()
 	pmaTokens[token] = pmaTokenData{
 		User:     dbUser,
 		Password: dbPassword,
 		DB:       dbName,
-		Expires:  time.Now().Add(1 * time.Minute), // 1 minute valid
+		Expires:  time.Now().Add(5 * time.Minute), // 5 minutes valid (SignonScript her request'te çağrılıyor)
 	}
 	pmaMutex.Unlock()
 
@@ -652,30 +653,29 @@ func (h *Handler) GetPhpMyAdminURL(c *fiber.Ctx) error {
 }
 
 // GetPhpMyAdminCredentials retrieves credentials for a given token (Internal use)
+// Token'ı consume etmiyoruz çünkü SignonScript her request'te çağrılıyor
 func (h *Handler) GetPhpMyAdminCredentials(c *fiber.Ctx) error {
 	token := c.Query("token")
 	if token == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Token required"})
 	}
 
-	pmaMutex.Lock()
+	pmaMutex.RLock()
 	data, exists := pmaTokens[token]
 	if exists {
 		// Check expiration
 		if time.Now().After(data.Expires) {
-			delete(pmaTokens, token)
 			exists = false
-		} else {
-			// Consume token (one-time use)
-			delete(pmaTokens, token)
 		}
 	}
-	pmaMutex.Unlock()
+	pmaMutex.RUnlock()
 
 	if !exists {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid or expired token"})
 	}
 
+	// Token'ı consume etmiyoruz - SignonScript her request'te çağrıldığı için
+	// Token süresi dolduğunda otomatik olarak geçersiz olacak
 	return c.JSON(fiber.Map{
 		"user":     data.User,
 		"password": data.Password,

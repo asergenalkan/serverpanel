@@ -679,6 +679,7 @@ $i++;
 $cfg['Servers'][$i]['auth_type'] = 'signon';
 $cfg['Servers'][$i]['SignonSession'] = 'SignonSession';
 $cfg['Servers'][$i]['SignonURL'] = '/pma-signon.php';
+$cfg['Servers'][$i]['SignonScript'] = '/var/www/html/pma-signon-script.php';
 $cfg['Servers'][$i]['LogoutURL'] = '/pma-logout.php';
 $cfg['Servers'][$i]['host'] = 'localhost';
 $cfg['Servers'][$i]['compress'] = false;
@@ -689,7 +690,7 @@ $cfg['SaveDir'] = '';
 PMAEOF
     log_done "phpMyAdmin config oluşturuldu"
     
-    # Signon script
+    # Signon URL script (ilk yönlendirme için)
     cat > /var/www/html/pma-signon.php << 'SIGNONEOF'
 <?php
 // Get panel URL from environment or use default
@@ -703,42 +704,90 @@ if (empty($token)) {
     header('Location: ' . $panelBaseUrl . '/databases');
     exit;
 }
-$apiUrl = "http://127.0.0.1:${panelPort}/api/v1/internal/pma-credentials?token=" . urlencode($token);
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $apiUrl);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-$response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-if ($httpCode !== 200 || empty($response)) {
-    header('Location: ' . $panelBaseUrl . '/databases');
-    exit;
-}
-$data = json_decode($response, true);
-if (!$data || empty($data['user']) || empty($data['password'])) {
-    header('Location: ' . $panelBaseUrl . '/databases');
-    exit;
-}
+
+// Token'ı session'a kaydet ve phpMyAdmin'e yönlendir
 ini_set('session.use_cookies', 'true');
 session_set_cookie_params(0, '/', '', false, true);
 session_name('SignonSession');
 session_start();
-$_SESSION['PMA_single_signon_user'] = $data['user'];
-$_SESSION['PMA_single_signon_password'] = $data['password'];
-$_SESSION['PMA_single_signon_host'] = $data['host'] ?? 'localhost';
-$_SESSION['PMA_single_signon_port'] = 3306;
-$_SESSION['PMA_single_signon_HMAC_secret'] = hash('sha1', uniqid(strval(rand()), true));
+$_SESSION['pma_token'] = $token;
 session_write_close();
+
+// phpMyAdmin'e yönlendir (SignonScript otomatik çağrılacak)
 $pmaUrl = '/phpmyadmin/index.php';
-if (!empty($data['db'])) {
-    $pmaUrl .= '?db=' . urlencode($data['db']);
-}
 header('Location: ' . $pmaUrl);
 exit;
 SIGNONEOF
     chown www-data:www-data /var/www/html/pma-signon.php
     chmod 644 /var/www/html/pma-signon.php
+    
+    # SignonScript (her request'te çağrılır - oneri.md'deki yaklaşım)
+    cat > /var/www/html/pma-signon-script.php << 'SCRIPTEOF'
+<?php
+/**
+ * phpMyAdmin SignonScript
+ * Her request'te phpMyAdmin tarafından çağrılır
+ * Session değişkenlerini doldurur
+ * 
+ * oneri.md'deki yaklaşım: Token'ı al, Go backend'e istek at, credentials'ı session'a doldur
+ */
+session_name('SignonSession');
+session_start();
+
+// Eğer credentials zaten session'da varsa, tekrar istek atmaya gerek yok
+if (isset($_SESSION['PMA_single_signon_user']) && isset($_SESSION['PMA_single_signon_password'])) {
+    return; // Zaten giriş yapılmış
+}
+
+// Token'ı session'dan al
+$token = $_SESSION['pma_token'] ?? null;
+
+if (!$token) {
+    // Token yoksa, phpMyAdmin login ekranına düşsün
+    return;
+}
+
+// Go backend'e istek at, token'ı doğrula
+$panelPort = getenv('PORT') ?: '8443';
+$apiUrl = "http://127.0.0.1:${panelPort}/api/v1/internal/pma-credentials?token=" . urlencode($token);
+
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $apiUrl);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($httpCode !== 200 || empty($response)) {
+    // Token geçersiz veya süresi dolmuş
+    unset($_SESSION['pma_token']);
+    return;
+}
+
+$data = json_decode($response, true);
+if (!$data || empty($data['user']) || empty($data['password'])) {
+    unset($_SESSION['pma_token']);
+    return;
+}
+
+// phpMyAdmin'in beklediği session değişkenlerini doldur
+$_SESSION['PMA_single_signon_user'] = $data['user'];
+$_SESSION['PMA_single_signon_password'] = $data['password'];
+$_SESSION['PMA_single_signon_host'] = $data['host'] ?? 'localhost';
+$_SESSION['PMA_single_signon_port'] = 3306;
+
+// HMAC secret (güvenlik için)
+if (!isset($_SESSION['PMA_single_signon_HMAC_secret'])) {
+    $_SESSION['PMA_single_signon_HMAC_secret'] = hash('sha1', uniqid(strval(rand()), true));
+}
+
+// Token başarıyla kullanıldı ve credentials session'a kaydedildi
+// Artık token'a ihtiyaç yok, ama logout'a kadar session'da tutabiliriz
+SCRIPTEOF
+    chown www-data:www-data /var/www/html/pma-signon-script.php
+    chmod 644 /var/www/html/pma-signon-script.php
     
     # Logout script
     cat > /var/www/html/pma-logout.php << 'LOGOUTEOF'
