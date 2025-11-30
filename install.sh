@@ -9,7 +9,7 @@
 #   curl -sSL https://raw.githubusercontent.com/asergenalkan/serverpanel/main/install.sh | bash
 #
 
-set -e
+# set -e kaldırıldı - manuel hata yönetimi kullanılıyor
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # RENK TANIMLARI
