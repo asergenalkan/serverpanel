@@ -261,10 +261,10 @@ configure_dns() {
     log_step "DNS Yapılandırılıyor"
     
     mkdir -p /etc/bind/zones
-    chown bind:bind /etc/bind/zones
+    chown bind:bind /etc/bind/zones || true
     
-    systemctl enable bind9 > /dev/null 2>&1
-    systemctl start bind9
+    systemctl enable bind9 > /dev/null 2>&1 || true
+    systemctl start bind9 || true
     
     log_info "BIND durumu: $(systemctl is-active bind9)"
 }
