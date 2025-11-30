@@ -822,8 +822,8 @@ install_serverpanel() {
     local FRONTEND_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/serverpanel-frontend.tar.gz"
     rm -f /tmp/frontend.tar.gz
     
-    # wget ile indir (GitHub redirects için daha güvenilir)
-    if wget -q "$FRONTEND_URL" -O /tmp/frontend.tar.gz 2>/dev/null; then
+    # curl ile indir (redirect'leri takip et)
+    if curl -L -s "$FRONTEND_URL" -o /tmp/frontend.tar.gz 2>/dev/null; then
         local filesize=$(stat -c%s /tmp/frontend.tar.gz 2>/dev/null || echo "0")
         if [[ "$filesize" -gt 1000 ]]; then
             tar -xzf /tmp/frontend.tar.gz -C "$INSTALL_DIR/public" 2>/dev/null
