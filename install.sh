@@ -25,13 +25,13 @@ BOLD='\033[1m'
 # ═══════════════════════════════════════════════════════════════════════════════
 # YAPILANDIRMA
 # ═══════════════════════════════════════════════════════════════════════════════
-VERSION="1.0.0"
+PANEL_VERSION="1.0.0"
 INSTALL_DIR="/opt/serverpanel"
 DATA_DIR="/var/lib/serverpanel"
 LOG_DIR="/var/log/serverpanel"
 CONFIG_DIR="/root/.serverpanel"
 GITHUB_REPO="asergenalkan/serverpanel"
-RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}"
+RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/download/v${PANEL_VERSION}"
 
 # PHP Sürümü (OS'a göre belirlenir)
 PHP_VERSION=""
@@ -876,7 +876,7 @@ install_serverpanel() {
     log_progress "Frontend indiriliyor"
     mkdir -p "$INSTALL_DIR/public"
     
-    local FRONTEND_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/serverpanel-frontend.tar.gz"
+    local FRONTEND_URL="https://github.com/${GITHUB_REPO}/releases/download/v${PANEL_VERSION}/serverpanel-frontend.tar.gz"
     rm -f /tmp/frontend.tar.gz
     local download_success=false
     
