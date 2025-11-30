@@ -65,6 +65,13 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Get("/databases", h.ListDatabases)
 	protected.Post("/databases", h.CreateDatabase)
 	protected.Delete("/databases/:id", h.DeleteDatabase)
+	protected.Get("/databases/:id/size", h.GetDatabaseSize)
+	protected.Get("/databases/phpmyadmin", h.GetPhpMyAdminURL)
+
+	// Database Users (all authenticated users)
+	protected.Get("/database-users", h.ListDatabaseUsers)
+	protected.Post("/database-users", h.CreateDatabaseUser)
+	protected.Delete("/database-users/:id", h.DeleteDatabaseUser)
 
 	// System (admin only)
 	protected.Get("/system/stats", admin, h.GetSystemStats)

@@ -29,7 +29,7 @@ interface LayoutProps {
 const userMenuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
   { icon: FolderOpen, label: 'Dosya Yöneticisi', href: '/files' },
-  { icon: Database, label: 'Veritabanları', href: '/databases', disabled: true },
+  { icon: Database, label: 'Veritabanları', href: '/databases' },
   { icon: Mail, label: 'E-posta', href: '/email', disabled: true },
   { icon: Shield, label: 'SSL/TLS', href: '/ssl', disabled: true },
   { icon: HardDrive, label: 'Backup', href: '/backup', disabled: true },
@@ -41,6 +41,7 @@ const adminMenuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
   { icon: Users, label: 'Hosting Hesapları', href: '/accounts' },
   { icon: Globe, label: 'Tüm Domainler', href: '/domains' },
+  { icon: Database, label: 'Veritabanları', href: '/databases' },
   { icon: Package, label: 'Paketler', href: '/packages', disabled: true },
   { icon: Settings, label: 'Ayarlar', href: '/settings', disabled: true },
 ];

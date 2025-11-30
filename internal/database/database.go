@@ -96,6 +96,18 @@ func (db *DB) migrate() error {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
+		// Database users table
+		`CREATE TABLE IF NOT EXISTS database_users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			database_id INTEGER NOT NULL,
+			db_username TEXT UNIQUE NOT NULL,
+			host TEXT DEFAULT 'localhost',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY (database_id) REFERENCES databases(id) ON DELETE CASCADE
+		)`,
+
 		// Email accounts table
 		`CREATE TABLE IF NOT EXISTS email_accounts (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -134,6 +146,8 @@ func (db *DB) migrate() error {
 		// Create indexes
 		`CREATE INDEX IF NOT EXISTS idx_domains_user_id ON domains(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_databases_user_id ON databases(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_database_users_user_id ON database_users(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_database_users_database_id ON database_users(database_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_email_accounts_user_id ON email_accounts(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id)`,
 	}

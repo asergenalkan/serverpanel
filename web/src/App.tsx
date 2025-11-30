@@ -6,6 +6,7 @@ import Dashboard from '@/pages/Dashboard';
 import Domains from '@/pages/Domains';
 import Accounts from '@/pages/Accounts';
 import FileManager from '@/pages/FileManager';
+import Databases from '@/pages/Databases';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -105,6 +106,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <FileManager />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/databases"
+        element={
+          <ProtectedRoute>
+            <Databases />
           </ProtectedRoute>
         }
       />

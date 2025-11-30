@@ -72,8 +72,17 @@ export const domainsAPI = {
 // Databases
 export const databasesAPI = {
   list: () => api.get('/databases'),
-  create: (data: { name: string; type?: string }) => api.post('/databases', data),
+  create: (data: { name: string; password?: string }) => api.post('/databases', data),
   delete: (id: number) => api.delete(`/databases/${id}`),
+  getSize: (id: number) => api.get(`/databases/${id}/size`),
+  getPhpMyAdminURL: (databaseId: number) => api.get('/databases/phpmyadmin', { params: { database_id: databaseId } }),
+};
+
+// Database Users
+export const databaseUsersAPI = {
+  list: () => api.get('/database-users'),
+  create: (data: { database_id: number; username: string; password: string }) => api.post('/database-users', data),
+  delete: (id: number) => api.delete(`/database-users/${id}`),
 };
 
 // System

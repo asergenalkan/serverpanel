@@ -24,37 +24,48 @@ type User struct {
 
 // Package represents a hosting package
 type Package struct {
-	ID           int64  `json:"id"`
-	Name         string `json:"name"`
-	DiskQuota    int64  `json:"disk_quota"`    // MB
-	BandwidthQuota int64 `json:"bandwidth_quota"` // MB per month
-	MaxDomains   int    `json:"max_domains"`
-	MaxDatabases int    `json:"max_databases"`
-	MaxEmails    int    `json:"max_emails"`
-	MaxFTP       int    `json:"max_ftp"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID             int64     `json:"id"`
+	Name           string    `json:"name"`
+	DiskQuota      int64     `json:"disk_quota"`      // MB
+	BandwidthQuota int64     `json:"bandwidth_quota"` // MB per month
+	MaxDomains     int       `json:"max_domains"`
+	MaxDatabases   int       `json:"max_databases"`
+	MaxEmails      int       `json:"max_emails"`
+	MaxFTP         int       `json:"max_ftp"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 // Domain represents a hosted domain
 type Domain struct {
-	ID          int64     `json:"id"`
-	UserID      int64     `json:"user_id"`
-	Name        string    `json:"name"`
-	DocumentRoot string   `json:"document_root"`
-	SSLEnabled  bool      `json:"ssl_enabled"`
-	SSLExpiry   *time.Time `json:"ssl_expiry,omitempty"`
-	Active      bool      `json:"active"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID           int64      `json:"id"`
+	UserID       int64      `json:"user_id"`
+	Name         string     `json:"name"`
+	DocumentRoot string     `json:"document_root"`
+	SSLEnabled   bool       `json:"ssl_enabled"`
+	SSLExpiry    *time.Time `json:"ssl_expiry,omitempty"`
+	Active       bool       `json:"active"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 // Database represents a MySQL/PostgreSQL database
 type Database struct {
 	ID        int64     `json:"id"`
 	UserID    int64     `json:"user_id"`
+	Username  string    `json:"username,omitempty"` // Panel username for display
 	Name      string    `json:"name"`
 	Type      string    `json:"type"` // mysql, postgresql
 	Size      int64     `json:"size"` // bytes
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// DatabaseUser represents a database user
+type DatabaseUser struct {
+	ID         int64     `json:"id"`
+	UserID     int64     `json:"user_id"`     // Panel user ID
+	DatabaseID int64     `json:"database_id"` // Associated database
+	DBUsername string    `json:"db_username"` // MySQL username
+	Host       string    `json:"host"`        // Usually localhost
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // EmailAccount represents an email account
@@ -70,12 +81,12 @@ type EmailAccount struct {
 
 // SystemStats represents server statistics
 type SystemStats struct {
-	CPUUsage    float64 `json:"cpu_usage"`
-	MemoryTotal int64   `json:"memory_total"`
-	MemoryUsed  int64   `json:"memory_used"`
-	DiskTotal   int64   `json:"disk_total"`
-	DiskUsed    int64   `json:"disk_used"`
-	Uptime      int64   `json:"uptime"`
+	CPUUsage    float64   `json:"cpu_usage"`
+	MemoryTotal int64     `json:"memory_total"`
+	MemoryUsed  int64     `json:"memory_used"`
+	DiskTotal   int64     `json:"disk_total"`
+	DiskUsed    int64     `json:"disk_used"`
+	Uptime      int64     `json:"uptime"`
 	LoadAverage []float64 `json:"load_average"`
 }
 
