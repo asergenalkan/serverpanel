@@ -336,10 +336,28 @@ configure_php() {
     source /etc/os-release
     [[ "$VERSION_ID" == "24.04" ]] && PHP_VERSION="8.3" || PHP_VERSION="8.1"
     
-    systemctl enable php${PHP_VERSION}-fpm > /dev/null 2>&1
-    systemctl restart php${PHP_VERSION}-fpm
+    # Socket dizinini oluştur
+    mkdir -p /run/php
+    chown www-data:www-data /run/php
     
-    log_info "PHP-FPM durumu: $(systemctl is-active php${PHP_VERSION}-fpm)"
+    # Servisi etkinleştir ve başlat
+    systemctl enable php${PHP_VERSION}-fpm > /dev/null 2>&1
+    systemctl start php${PHP_VERSION}-fpm > /dev/null 2>&1
+    
+    # Servis başladı mı kontrol et
+    sleep 1
+    if systemctl is-active --quiet php${PHP_VERSION}-fpm; then
+        log_info "PHP-FPM durumu: active ✓"
+    else
+        log_warn "PHP-FPM başlatılamadı, yeniden deneniyor..."
+        systemctl restart php${PHP_VERSION}-fpm
+        sleep 1
+        if systemctl is-active --quiet php${PHP_VERSION}-fpm; then
+            log_info "PHP-FPM durumu: active ✓"
+        else
+            log_error "PHP-FPM başlatılamadı!"
+        fi
+    fi
 }
 
 install_phpmyadmin() {

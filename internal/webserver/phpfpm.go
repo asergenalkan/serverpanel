@@ -129,7 +129,7 @@ func (m *PHPFPMManager) DeletePool(username string) error {
 	return m.Reload()
 }
 
-// Reload reloads PHP-FPM
+// Reload reloads or restarts PHP-FPM depending on its state
 func (m *PHPFPMManager) Reload() error {
 	if m.simulateMode {
 		log.Printf("🔧 [SIMÜLASYON] systemctl reload php%s-fpm", m.phpVersion)
@@ -137,9 +137,30 @@ func (m *PHPFPMManager) Reload() error {
 	}
 
 	service := fmt.Sprintf("php%s-fpm", m.phpVersion)
-	cmd := exec.Command("systemctl", "reload", service)
+
+	// Check if service is active
+	checkCmd := exec.Command("systemctl", "is-active", "--quiet", service)
+	isActive := checkCmd.Run() == nil
+
+	var cmd *exec.Cmd
+	if isActive {
+		// Service is active, reload it
+		cmd = exec.Command("systemctl", "reload", service)
+	} else {
+		// Service is not active, start it
+		log.Printf("⚠️ PHP-FPM was not active, starting it...")
+		cmd = exec.Command("systemctl", "start", service)
+	}
+
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to reload php-fpm: %s - %w", string(output), err)
+		// If reload/start failed, try restart as fallback
+		log.Printf("⚠️ PHP-FPM reload/start failed, trying restart...")
+		restartCmd := exec.Command("systemctl", "restart", service)
+		if restartOutput, restartErr := restartCmd.CombinedOutput(); restartErr != nil {
+			return fmt.Errorf("failed to reload/restart php-fpm: %s - %w", string(restartOutput), restartErr)
+		}
+	} else {
+		_ = output // suppress unused warning
 	}
 
 	log.Printf("✅ PHP-FPM reloaded successfully")
