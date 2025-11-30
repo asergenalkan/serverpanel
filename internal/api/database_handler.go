@@ -3,9 +3,7 @@ package api
 import (
 	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,9 +12,24 @@ import (
 	"strings"
 	"time"
 
+	"sync"
+
 	"github.com/asergenalkan/serverpanel/internal/models"
 	"github.com/gofiber/fiber/v2"
 )
+
+// Token store for phpMyAdmin SSO
+var (
+	pmaTokens = make(map[string]pmaTokenData)
+	pmaMutex  sync.RWMutex
+)
+
+type pmaTokenData struct {
+	User     string
+	Password string
+	DB       string
+	Expires  time.Time
+}
 
 // MySQL connection for real database operations
 func (h *Handler) getMySQLConnection() (*sql.DB, error) {
@@ -588,15 +601,20 @@ func (h *Handler) GetPhpMyAdminURL(c *fiber.Ctx) error {
 		})
 	}
 
-	// Create signon token (base64 encoded JSON with expiration)
-	tokenData := map[string]interface{}{
-		"user":     dbUser,
-		"password": dbPassword,
-		"db":       dbName,
-		"exp":      time.Now().Add(5 * time.Minute).Unix(),
+	// Generate random token
+	tokenBytes := make([]byte, 16)
+	rand.Read(tokenBytes)
+	token := hex.EncodeToString(tokenBytes)
+
+	// Store token in memory
+	pmaMutex.Lock()
+	pmaTokens[token] = pmaTokenData{
+		User:     dbUser,
+		Password: dbPassword,
+		DB:       dbName,
+		Expires:  time.Now().Add(1 * time.Minute), // 1 minute valid
 	}
-	tokenJSON, _ := json.Marshal(tokenData)
-	token := base64.StdEncoding.EncodeToString(tokenJSON)
+	pmaMutex.Unlock()
 
 	// Get server IP for URL
 	serverIP := os.Getenv("SERVER_IP")
@@ -605,7 +623,7 @@ func (h *Handler) GetPhpMyAdminURL(c *fiber.Ctx) error {
 	}
 
 	// Return signon URL
-	pmaURL := fmt.Sprintf("http://%s/pma-signon.php?token=%s", serverIP, token)
+	pmaURL := fmt.Sprintf("http://%s/phpmyadmin/index.php?token=%s", serverIP, token)
 
 	return c.JSON(models.APIResponse{
 		Success: true,
@@ -614,6 +632,39 @@ func (h *Handler) GetPhpMyAdminURL(c *fiber.Ctx) error {
 			"database": dbName,
 			"username": dbUser,
 		},
+	})
+}
+
+// GetPhpMyAdminCredentials retrieves credentials for a given token (Internal use)
+func (h *Handler) GetPhpMyAdminCredentials(c *fiber.Ctx) error {
+	token := c.Query("token")
+	if token == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Token required"})
+	}
+
+	pmaMutex.Lock()
+	data, exists := pmaTokens[token]
+	if exists {
+		// Check expiration
+		if time.Now().After(data.Expires) {
+			delete(pmaTokens, token)
+			exists = false
+		} else {
+			// Consume token (one-time use)
+			delete(pmaTokens, token)
+		}
+	}
+	pmaMutex.Unlock()
+
+	if !exists {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid or expired token"})
+	}
+
+	return c.JSON(fiber.Map{
+		"user":     data.User,
+		"password": data.Password,
+		"host":     "localhost",
+		"db":       data.DB,
 	})
 }
 
