@@ -32,14 +32,8 @@ type SSLCertificate struct {
 
 // ListSSLCertificates returns all SSL certificates for the user
 func (h *Handler) ListSSLCertificates(c *fiber.Ctx) error {
-	userInterface := c.Locals("user")
-	if userInterface == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.APIResponse{
-			Success: false,
-			Error:   "Unauthorized",
-		})
-	}
-	user := userInterface.(*models.User)
+	userID := c.Locals("user_id").(int64)
+	role := c.Locals("role").(string)
 
 	var certificates []SSLCertificate
 
@@ -47,11 +41,11 @@ func (h *Handler) ListSSLCertificates(c *fiber.Ctx) error {
 	var query string
 	var args []interface{}
 
-	if user.Role == models.RoleAdmin {
+	if role == models.RoleAdmin {
 		query = `SELECT d.id, d.domain FROM domains d ORDER BY d.domain`
 	} else {
 		query = `SELECT d.id, d.domain FROM domains d WHERE d.user_id = ? ORDER BY d.domain`
-		args = append(args, user.ID)
+		args = append(args, userID)
 	}
 
 	rows, err := h.db.Query(query, args...)
@@ -115,19 +109,13 @@ func (h *Handler) GetSSLCertificate(c *fiber.Ctx) error {
 		})
 	}
 
-	userInterface := c.Locals("user")
-	if userInterface == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.APIResponse{
-			Success: false,
-			Error:   "Unauthorized",
-		})
-	}
-	user := userInterface.(*models.User)
+	currentUserID := c.Locals("user_id").(int64)
+	role := c.Locals("role").(string)
 
 	// Get domain
 	var domain string
-	var userID int64
-	err = h.db.QueryRow("SELECT domain, user_id FROM domains WHERE id = ?", domainID).Scan(&domain, &userID)
+	var ownerID int64
+	err = h.db.QueryRow("SELECT domain, user_id FROM domains WHERE id = ?", domainID).Scan(&domain, &ownerID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(models.APIResponse{
 			Success: false,
@@ -136,7 +124,7 @@ func (h *Handler) GetSSLCertificate(c *fiber.Ctx) error {
 	}
 
 	// Check permission
-	if user.Role != models.RoleAdmin && user.ID != userID {
+	if role != models.RoleAdmin && currentUserID != ownerID {
 		return c.Status(fiber.StatusForbidden).JSON(models.APIResponse{
 			Success: false,
 			Error:   "Access denied",
@@ -182,23 +170,17 @@ func (h *Handler) IssueSSLCertificate(c *fiber.Ctx) error {
 		})
 	}
 
-	userInterface := c.Locals("user")
-	if userInterface == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.APIResponse{
-			Success: false,
-			Error:   "Unauthorized",
-		})
-	}
-	user := userInterface.(*models.User)
+	currentUserID := c.Locals("user_id").(int64)
+	role := c.Locals("role").(string)
 
 	// Get domain info
 	var domain, username string
-	var userID int64
+	var ownerID int64
 	err = h.db.QueryRow(`
 		SELECT d.domain, d.user_id, u.username 
 		FROM domains d 
 		JOIN users u ON d.user_id = u.id 
-		WHERE d.id = ?`, domainID).Scan(&domain, &userID, &username)
+		WHERE d.id = ?`, domainID).Scan(&domain, &ownerID, &username)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(models.APIResponse{
 			Success: false,
@@ -207,7 +189,7 @@ func (h *Handler) IssueSSLCertificate(c *fiber.Ctx) error {
 	}
 
 	// Check permission
-	if user.Role != models.RoleAdmin && user.ID != userID {
+	if role != models.RoleAdmin && currentUserID != ownerID {
 		return c.Status(fiber.StatusForbidden).JSON(models.APIResponse{
 			Success: false,
 			Error:   "Access denied",
@@ -222,7 +204,7 @@ func (h *Handler) IssueSSLCertificate(c *fiber.Ctx) error {
 
 	// Get email
 	var email string
-	h.db.QueryRow("SELECT email FROM users WHERE id = ?", userID).Scan(&email)
+	h.db.QueryRow("SELECT email FROM users WHERE id = ?", ownerID).Scan(&email)
 	if email == "" {
 		email = "admin@" + domain
 	}
@@ -269,19 +251,13 @@ func (h *Handler) RenewSSLCertificate(c *fiber.Ctx) error {
 		})
 	}
 
-	userInterface := c.Locals("user")
-	if userInterface == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.APIResponse{
-			Success: false,
-			Error:   "Unauthorized",
-		})
-	}
-	user := userInterface.(*models.User)
+	currentUserID := c.Locals("user_id").(int64)
+	role := c.Locals("role").(string)
 
 	// Get domain
 	var domain string
-	var userID int64
-	err = h.db.QueryRow("SELECT domain, user_id FROM domains WHERE id = ?", domainID).Scan(&domain, &userID)
+	var ownerID int64
+	err = h.db.QueryRow("SELECT domain, user_id FROM domains WHERE id = ?", domainID).Scan(&domain, &ownerID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(models.APIResponse{
 			Success: false,
@@ -290,7 +266,7 @@ func (h *Handler) RenewSSLCertificate(c *fiber.Ctx) error {
 	}
 
 	// Check permission
-	if user.Role != models.RoleAdmin && user.ID != userID {
+	if role != models.RoleAdmin && currentUserID != ownerID {
 		return c.Status(fiber.StatusForbidden).JSON(models.APIResponse{
 			Success: false,
 			Error:   "Access denied",
@@ -321,23 +297,17 @@ func (h *Handler) RevokeSSLCertificate(c *fiber.Ctx) error {
 		})
 	}
 
-	userInterface := c.Locals("user")
-	if userInterface == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.APIResponse{
-			Success: false,
-			Error:   "Unauthorized",
-		})
-	}
-	user := userInterface.(*models.User)
+	currentUserID := c.Locals("user_id").(int64)
+	role := c.Locals("role").(string)
 
 	// Get domain
 	var domain, username string
-	var userID int64
+	var ownerID int64
 	err = h.db.QueryRow(`
 		SELECT d.domain, d.user_id, u.username 
 		FROM domains d 
 		JOIN users u ON d.user_id = u.id 
-		WHERE d.id = ?`, domainID).Scan(&domain, &userID, &username)
+		WHERE d.id = ?`, domainID).Scan(&domain, &ownerID, &username)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(models.APIResponse{
 			Success: false,
@@ -346,7 +316,7 @@ func (h *Handler) RevokeSSLCertificate(c *fiber.Ctx) error {
 	}
 
 	// Check permission
-	if user.Role != models.RoleAdmin && user.ID != userID {
+	if role != models.RoleAdmin && currentUserID != ownerID {
 		return c.Status(fiber.StatusForbidden).JSON(models.APIResponse{
 			Success: false,
 			Error:   "Access denied",
