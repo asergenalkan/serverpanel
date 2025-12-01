@@ -135,6 +135,20 @@ export const filesAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+  uploadWithProgress: (path: string, file: File, onProgress: (percent: number) => void) => {
+    const formData = new FormData();
+    formData.append('path', path);
+    formData.append('files', file);
+    return api.post('/files/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percent);
+        }
+      },
+    });
+  },
   download: (path: string) => `/api/v1/files/download?path=${encodeURIComponent(path)}`,
   compress: (paths: string[], destination: string) => api.post('/files/compress', { paths, destination }),
   extract: (path: string, destination: string) => api.post('/files/extract', { path, destination }),

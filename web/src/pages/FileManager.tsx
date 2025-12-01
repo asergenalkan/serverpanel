@@ -111,6 +111,7 @@ export default function FileManager() {
   // Upload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string; percent: number } | null>(null);
 
   // Fetch files
   const fetchFiles = useCallback(async () => {
@@ -342,15 +343,28 @@ export default function FileManager() {
     }
   };
 
-  // Upload
+  // Upload with progress
   const handleUpload = async (fileList: FileList | File[]) => {
     if (!fileList.length) return;
-    try {
-      await filesAPI.upload(currentPath, fileList);
-      fetchFiles();
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Yükleme başarısız');
+    
+    const files = Array.from(fileList);
+    const total = files.length;
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setUploadProgress({ current: i + 1, total, fileName: file.name, percent: 0 });
+      
+      try {
+        await filesAPI.uploadWithProgress(currentPath, file, (percent) => {
+          setUploadProgress({ current: i + 1, total, fileName: file.name, percent });
+        });
+      } catch (error: any) {
+        alert(`${file.name}: ${error.response?.data?.error || 'Yükleme başarısız'}`);
+      }
     }
+    
+    setUploadProgress(null);
+    fetchFiles();
   };
 
   // Download
@@ -594,6 +608,36 @@ export default function FileManager() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Upload Progress */}
+        {uploadProgress && (
+          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-blue-600 animate-pulse" />
+                  <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    Yükleniyor: {uploadProgress.fileName}
+                  </span>
+                </div>
+                <span className="text-sm text-blue-600 dark:text-blue-400">
+                  {uploadProgress.current} / {uploadProgress.total} dosya
+                </span>
+              </div>
+              <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2.5">
+                <div 
+                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress.percent}%` }}
+                />
+              </div>
+              <div className="text-right mt-1">
+                <span className="text-xs text-blue-600 dark:text-blue-400">
+                  %{uploadProgress.percent}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-1 text-sm text-muted-foreground px-1">
