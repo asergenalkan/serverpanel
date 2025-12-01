@@ -117,6 +117,24 @@ export const sslAPI = {
   revoke: (domainId: number) => api.delete(`/ssl/${domainId}`),
 };
 
+// PHP Management
+export const phpAPI = {
+  getVersions: () => api.get('/php/versions'),
+  getDomainSettings: (domainId: number) => api.get(`/php/domains/${domainId}`),
+  updateVersion: (domainId: number, phpVersion: string) => 
+    api.put(`/php/domains/${domainId}/version`, { php_version: phpVersion }),
+  updateSettings: (domainId: number, settings: {
+    memory_limit: string;
+    max_execution_time: number;
+    max_input_time: number;
+    post_max_size: string;
+    upload_max_filesize: string;
+    max_file_uploads: number;
+    display_errors: boolean;
+    error_reporting: string;
+  }) => api.put(`/php/domains/${domainId}/settings`, settings),
+};
+
 // File Manager
 export const filesAPI = {
   list: (path: string = '/') => api.get('/files/list', { params: { path } }),

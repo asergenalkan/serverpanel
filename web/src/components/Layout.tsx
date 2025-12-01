@@ -19,6 +19,7 @@ import {
   Clock,
   Sun,
   Moon,
+  Code,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -31,6 +32,7 @@ const userMenuItems = [
   { icon: FolderOpen, label: 'Dosya Yöneticisi', href: '/files' },
   { icon: Database, label: 'Veritabanları', href: '/databases' },
   { icon: Shield, label: 'SSL/TLS', href: '/ssl' },
+  { icon: Code, label: 'PHP Ayarları', href: '/php' },
   { icon: Mail, label: 'E-posta', href: '/email', disabled: true },
   { icon: HardDrive, label: 'Backup', href: '/backup', disabled: true },
   { icon: Clock, label: 'Cron Jobs', href: '/cron', disabled: true },
@@ -43,6 +45,7 @@ const adminMenuItems = [
   { icon: Globe, label: 'Tüm Domainler', href: '/domains' },
   { icon: Database, label: 'Veritabanları', href: '/databases' },
   { icon: Shield, label: 'SSL/TLS', href: '/ssl' },
+  { icon: Code, label: 'PHP Ayarları', href: '/php' },
   { icon: Package, label: 'Paketler', href: '/packages', disabled: true },
   { icon: Settings, label: 'Ayarlar', href: '/settings', disabled: true },
 ];

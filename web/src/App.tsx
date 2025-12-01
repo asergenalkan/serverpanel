@@ -8,6 +8,7 @@ import Accounts from '@/pages/Accounts';
 import FileManager from '@/pages/FileManager';
 import Databases from '@/pages/Databases';
 import SSL from '@/pages/SSL';
+import PHPSettings from '@/pages/PHPSettings';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -123,6 +124,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <SSL />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/php"
+        element={
+          <ProtectedRoute>
+            <PHPSettings />
           </ProtectedRoute>
         }
       />

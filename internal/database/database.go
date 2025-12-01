@@ -78,11 +78,29 @@ func (db *DB) migrate() error {
 			user_id INTEGER NOT NULL,
 			name TEXT UNIQUE NOT NULL,
 			document_root TEXT,
+			php_version TEXT DEFAULT '8.1',
 			ssl_enabled INTEGER DEFAULT 0,
 			ssl_expiry DATETIME,
 			active INTEGER DEFAULT 1,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+
+		// PHP Settings table (per domain)
+		`CREATE TABLE IF NOT EXISTS php_settings (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			domain_id INTEGER NOT NULL UNIQUE,
+			memory_limit TEXT DEFAULT '256M',
+			max_execution_time INTEGER DEFAULT 300,
+			max_input_time INTEGER DEFAULT 300,
+			post_max_size TEXT DEFAULT '64M',
+			upload_max_filesize TEXT DEFAULT '64M',
+			max_file_uploads INTEGER DEFAULT 20,
+			display_errors INTEGER DEFAULT 0,
+			error_reporting TEXT DEFAULT 'E_ALL & ~E_DEPRECATED & ~E_STRICT',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE
 		)`,
 
 		// Databases table
@@ -161,6 +179,9 @@ func (db *DB) migrate() error {
 
 	// Add password column to database_users if not exists
 	db.Exec(`ALTER TABLE database_users ADD COLUMN password TEXT`)
+
+	// Add php_version column to domains if not exists
+	db.Exec(`ALTER TABLE domains ADD COLUMN php_version TEXT DEFAULT '8.1'`)
 
 	// Create default admin user if not exists
 	if err := db.createDefaultAdmin(); err != nil {

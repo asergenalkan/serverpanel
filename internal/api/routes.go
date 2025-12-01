@@ -86,6 +86,12 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Post("/ssl/:id/renew", h.RenewSSLCertificate)
 	protected.Delete("/ssl/:id", h.RevokeSSLCertificate)
 
+	// PHP Management (all authenticated users)
+	protected.Get("/php/versions", h.GetInstalledPHPVersions)
+	protected.Get("/php/domains/:id", h.GetDomainPHPSettings)
+	protected.Put("/php/domains/:id/version", h.UpdateDomainPHPVersion)
+	protected.Put("/php/domains/:id/settings", h.UpdateDomainPHPSettings)
+
 	// File Manager (all authenticated users)
 	protected.Get("/files/list", h.ListFiles)
 	protected.Get("/files/read", h.ReadFile)
