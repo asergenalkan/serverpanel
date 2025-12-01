@@ -26,8 +26,11 @@ func main() {
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
-		AppName:      "ServerPanel v1.0.0",
-		ServerHeader: "ServerPanel",
+		AppName:               "ServerPanel v1.0.0",
+		ServerHeader:          "ServerPanel",
+		BodyLimit:             512 * 1024 * 1024, // 512MB upload limit
+		StreamRequestBody:     true,
+		DisableStartupMessage: false,
 	})
 
 	// Middleware
