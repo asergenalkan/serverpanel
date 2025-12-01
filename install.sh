@@ -25,13 +25,13 @@ BOLD='\033[1m'
 # ═══════════════════════════════════════════════════════════════════════════════
 # YAPILANDIRMA
 # ═══════════════════════════════════════════════════════════════════════════════
-PANEL_VERSION="1.0.0"
+VERSION="1.0.0"
 INSTALL_DIR="/opt/serverpanel"
 DATA_DIR="/var/lib/serverpanel"
 LOG_DIR="/var/log/serverpanel"
 CONFIG_DIR="/root/.serverpanel"
 GITHUB_REPO="asergenalkan/serverpanel"
-RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/download/v${PANEL_VERSION}"
+RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}"
 
 # PHP Sürümü (OS'a göre belirlenir)
 PHP_VERSION=""
@@ -656,179 +656,119 @@ install_phpmyadmin() {
     fi
     log_info "MySQL bağlantısı aktif ✓"
     
-    # phpMyAdmin kurulumu
-    log_progress "phpMyAdmin kuruluyor"
-    {
-        echo "phpmyadmin phpmyadmin/dbconfig-install boolean true"
-        echo "phpmyadmin phpmyadmin/app-password-confirm password ${MYSQL_PASS}"
-        echo "phpmyadmin phpmyadmin/mysql/admin-pass password ${MYSQL_PASS}"
-        echo "phpmyadmin phpmyadmin/mysql/app-pass password ${MYSQL_PASS}"
-        echo "phpmyadmin phpmyadmin/reconfigure-webserver multiselect"
-    } | debconf-set-selections 2>/dev/null || true
+    # Debconf ayarları
+    log_progress "phpMyAdmin yapılandırılıyor"
+    echo "phpmyadmin phpmyadmin/dbconfig-install boolean true" | debconf-set-selections
+    echo "phpmyadmin phpmyadmin/app-password-confirm password ${MYSQL_PASS}" | debconf-set-selections
+    echo "phpmyadmin phpmyadmin/mysql/admin-pass password ${MYSQL_PASS}" | debconf-set-selections
+    echo "phpmyadmin phpmyadmin/mysql/app-pass password ${MYSQL_PASS}" | debconf-set-selections
+    echo "phpmyadmin phpmyadmin/reconfigure-webserver multiselect" | debconf-set-selections
+    log_done "Debconf ayarlandı"
     
+    log_progress "phpMyAdmin kuruluyor"
     DEBIAN_FRONTEND=noninteractive apt-get install -y phpmyadmin > /dev/null 2>&1
     log_done "phpMyAdmin kuruldu"
     
-    # phpMyAdmin config (SSO için)
-    log_progress "phpMyAdmin SSO ayarlanıyor"
-    cat > /usr/share/phpmyadmin/config.inc.php << 'PMAEOF'
+    # Ana config.inc.php oluştur (signon authentication ile)
+    log_progress "phpMyAdmin config oluşturuluyor"
+    local BLOWFISH=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)
+    cat > /usr/share/phpmyadmin/config.inc.php << PMACONFIG
 <?php
-$cfg['blowfish_secret'] = 'rp5kqvID4wqReYnemzQ6ByNWhka1NGcO';
-$i = 0;
-$i++;
-$cfg['Servers'][$i]['auth_type'] = 'signon';
-$cfg['Servers'][$i]['SignonSession'] = 'SignonSession';
-$cfg['Servers'][$i]['SignonURL'] = '/pma-signon.php';
-$cfg['Servers'][$i]['SignonScript'] = '/var/www/html/pma-signon-script.php';
-$cfg['Servers'][$i]['LogoutURL'] = '/pma-logout.php';
-$cfg['Servers'][$i]['host'] = 'localhost';
-$cfg['Servers'][$i]['compress'] = false;
-$cfg['Servers'][$i]['AllowNoPassword'] = false;
-$cfg['LoginCookieValidity'] = 1800;
-$cfg['UploadDir'] = '';
-$cfg['SaveDir'] = '';
-PMAEOF
+\$cfg['blowfish_secret'] = '${BLOWFISH}';
+
+\$i = 0;
+\$i++;
+
+\$cfg['Servers'][\$i]['auth_type'] = 'signon';
+\$cfg['Servers'][\$i]['SignonSession'] = 'SignonSession';
+\$cfg['Servers'][\$i]['SignonURL'] = '/pma-signon.php';
+\$cfg['Servers'][\$i]['LogoutURL'] = '/phpmyadmin/';
+\$cfg['Servers'][\$i]['host'] = 'localhost';
+\$cfg['Servers'][\$i]['compress'] = false;
+\$cfg['Servers'][\$i]['AllowNoPassword'] = false;
+
+\$cfg['UploadDir'] = '';
+\$cfg['SaveDir'] = '';
+PMACONFIG
+    chown root:root /usr/share/phpmyadmin/config.inc.php
+    chmod 644 /usr/share/phpmyadmin/config.inc.php
     log_done "phpMyAdmin config oluşturuldu"
     
-    # Signon URL script (ilk yönlendirme için)
-    cat > /var/www/html/pma-signon.php << 'SIGNONEOF'
+    # Signon PHP script'i oluştur (Go backend'den credential çeker)
+    log_progress "Signon script oluşturuluyor"
+    cat > /var/www/html/pma-signon.php << 'SCRIPTEOF'
 <?php
-// Get panel URL from environment or use default
-$panelPort = getenv('PORT') ?: '8443';
-$panelHost = getenv('SERVER_IP') ?: $_SERVER['HTTP_HOST'];
-$panelProtocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$panelBaseUrl = $panelProtocol . '://' . $panelHost . ':' . $panelPort;
+/**
+ * ServerPanel - phpMyAdmin Single Sign-On
+ * Go backend'den güvenli şekilde credential alır
+ */
 
 $token = $_GET['token'] ?? '';
 if (empty($token)) {
-    header('Location: ' . $panelBaseUrl . '/databases');
+    header('Location: /phpmyadmin/');
     exit;
 }
 
-// Token'ı session'a kaydet ve phpMyAdmin'e yönlendir
-ini_set('session.use_cookies', 'true');
-session_set_cookie_params(0, '/', '', false, true);
-session_name('SignonSession');
-session_start();
-$_SESSION['pma_token'] = $token;
-session_write_close();
-
-// phpMyAdmin'e yönlendir (SignonScript otomatik çağrılacak)
-$pmaUrl = '/phpmyadmin/index.php';
-header('Location: ' . $pmaUrl);
-exit;
-SIGNONEOF
-    chown www-data:www-data /var/www/html/pma-signon.php
-    chmod 644 /var/www/html/pma-signon.php
-    
-    # SignonScript (her request'te çağrılır - oneri.md'deki yaklaşım)
-    cat > /var/www/html/pma-signon-script.php << 'SCRIPTEOF'
-<?php
-/**
- * phpMyAdmin SignonScript
- * Her request'te phpMyAdmin tarafından çağrılır
- * Session değişkenlerini doldurur
- * 
- * oneri.md'deki yaklaşım: Token'ı al, Go backend'e istek at, credentials'ı session'a doldur
- */
-session_name('SignonSession');
-session_start();
-
-// Eğer credentials zaten session'da varsa, tekrar istek atmaya gerek yok
-if (isset($_SESSION['PMA_single_signon_user']) && isset($_SESSION['PMA_single_signon_password'])) {
-    return; // Zaten giriş yapılmış
-}
-
-// Token'ı session'dan al
-$token = $_SESSION['pma_token'] ?? null;
-
-if (!$token) {
-    // Token yoksa, phpMyAdmin login ekranına düşsün
-    return;
-}
-
-// Go backend'e istek at, token'ı doğrula
-$panelPort = getenv('PORT') ?: '8443';
-$apiUrl = "http://127.0.0.1:${panelPort}/api/v1/internal/pma-credentials?token=" . urlencode($token);
+// Go backend'den credential al (one-time token)
+$apiUrl = "http://127.0.0.1:8443/api/v1/internal/pma-credentials?token=" . urlencode($token);
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $apiUrl);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if ($httpCode !== 200 || empty($response)) {
-    // Token geçersiz veya süresi dolmuş
-    unset($_SESSION['pma_token']);
-    return;
+    die('Token geçersiz veya süresi dolmuş');
 }
 
 $data = json_decode($response, true);
 if (!$data || empty($data['user']) || empty($data['password'])) {
-    unset($_SESSION['pma_token']);
-    return;
+    die('Credential alınamadı');
 }
 
-// phpMyAdmin'in beklediği session değişkenlerini doldur
+// Session ayarları - path '/' olmalı ki phpMyAdmin okuyabilsin
+ini_set('session.use_cookies', 'true');
+session_set_cookie_params(0, '/', '', false, true);
+session_name('SignonSession');
+session_start();
+
+// phpMyAdmin için gerekli session değişkenleri
 $_SESSION['PMA_single_signon_user'] = $data['user'];
 $_SESSION['PMA_single_signon_password'] = $data['password'];
 $_SESSION['PMA_single_signon_host'] = $data['host'] ?? 'localhost';
 $_SESSION['PMA_single_signon_port'] = 3306;
+$_SESSION['PMA_single_signon_HMAC_secret'] = hash('sha1', uniqid(strval(rand()), true));
 
-// HMAC secret (güvenlik için)
-if (!isset($_SESSION['PMA_single_signon_HMAC_secret'])) {
-    $_SESSION['PMA_single_signon_HMAC_secret'] = hash('sha1', uniqid(strval(rand()), true));
+// Session'ı kaydet
+session_write_close();
+
+// phpMyAdmin'e yönlendir
+$pmaUrl = '/phpmyadmin/index.php';
+if (!empty($data['db'])) {
+    $pmaUrl .= '?db=' . urlencode($data['db']);
 }
 
-// Token başarıyla kullanıldı ve credentials session'a kaydedildi
-// Artık token'a ihtiyaç yok, ama logout'a kadar session'da tutabiliriz
-SCRIPTEOF
-    chown www-data:www-data /var/www/html/pma-signon-script.php
-    chmod 644 /var/www/html/pma-signon-script.php
-    
-    # Logout script
-    cat > /var/www/html/pma-logout.php << 'LOGOUTEOF'
-<?php
-// Get panel URL from environment or use default
-$panelPort = getenv('PORT') ?: '8443';
-$panelHost = getenv('SERVER_IP') ?: $_SERVER['HTTP_HOST'];
-$panelProtocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$panelBaseUrl = $panelProtocol . '://' . $panelHost . ':' . $panelPort;
-
-ini_set('session.use_cookies', 'true');
-session_set_cookie_params(0, '/', '', false, true);
-session_name('SignonSession');
-@session_start();
-$_SESSION = array();
-if (ini_get("session.use_cookies")) {
-    $params = session_get_cookie_params();
-    setcookie(session_name(), '', time() - 42000, $params["path"], $params["domain"], $params["secure"], $params["httponly"]);
-}
-@session_destroy();
-setcookie('phpMyAdmin', '', time() - 3600, '/');
-setcookie('phpMyAdmin', '', time() - 3600, '/phpmyadmin/');
-header('Location: ' . $panelBaseUrl . '/databases');
+header('Location: ' . $pmaUrl);
 exit;
-LOGOUTEOF
-    chown www-data:www-data /var/www/html/pma-logout.php
-    chmod 644 /var/www/html/pma-logout.php
-    log_done "SSO scriptleri oluşturuldu"
+SCRIPTEOF
+    chown www-data:www-data /var/www/html/pma-signon.php
+    chmod 644 /var/www/html/pma-signon.php
+    log_done "Signon script oluşturuldu"
     
-    # Apache logout redirect
-    cat > /etc/apache2/conf-available/phpmyadmin-logout.conf << 'APACHEEOF'
-<Directory /usr/share/phpmyadmin>
-    RewriteEngine On
-    RewriteCond %{QUERY_STRING} route=/logout
-    RewriteRule ^index\.php$ /pma-logout.php [R=302,L]
-</Directory>
-APACHEEOF
-    a2enconf phpmyadmin-logout > /dev/null 2>&1
-    systemctl restart apache2
+    systemctl reload apache2
     
-    log_info "phpMyAdmin SSO: hazır ✓"
+    sleep 2
+    if curl -s http://localhost/phpmyadmin/ 2>/dev/null | grep -qi "phpmyadmin"; then
+        log_info "phpMyAdmin erişimi: başarılı ✓"
+    else
+        log_warn "phpMyAdmin erişimi doğrulanamadı"
+    fi
+    
+    log_info "Auto-login özelliği aktif ✓"
 }
 
 install_go() {
@@ -885,22 +825,14 @@ install_serverpanel() {
     log_progress "Frontend indiriliyor"
     mkdir -p "$INSTALL_DIR/public"
     
-    local FRONTEND_URL="https://github.com/${GITHUB_REPO}/releases/download/v${PANEL_VERSION}/serverpanel-frontend.tar.gz"
+    local FRONTEND_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/serverpanel-frontend.tar.gz"
     rm -f /tmp/frontend.tar.gz
-    local download_success=false
     
-    # Yöntem 1: wget (verbose modda)
+    # wget ile indir (daha güvenilir)
     if command -v wget &> /dev/null; then
-        if wget --no-verbose --timeout=60 --tries=3 -O /tmp/frontend.tar.gz "$FRONTEND_URL" 2>&1; then
-            download_success=true
-        fi
-    fi
-    
-    # Yöntem 2: curl (wget başarısız olduysa)
-    if [[ "$download_success" == "false" ]]; then
-        if curl -fSL --connect-timeout 30 --max-time 120 --retry 3 "$FRONTEND_URL" -o /tmp/frontend.tar.gz 2>&1; then
-            download_success=true
-        fi
+        wget -q --timeout=30 -O /tmp/frontend.tar.gz "$FRONTEND_URL" 2>/dev/null
+    else
+        curl -fsSL --connect-timeout 30 "$FRONTEND_URL" -o /tmp/frontend.tar.gz 2>/dev/null
     fi
     
     # Dosya kontrolü
@@ -911,15 +843,14 @@ install_serverpanel() {
             rm -f /tmp/frontend.tar.gz
             log_done "Frontend indirildi (${filesize} bytes)"
         else
-            log_warn "Frontend dosyası çok küçük: ${filesize} bytes"
-            log_info "Manuel indirme: wget -O /tmp/f.tar.gz '$FRONTEND_URL' && tar -xzf /tmp/f.tar.gz -C $INSTALL_DIR/public"
+            log_warn "Frontend dosyası çok küçük: ${filesize} bytes - Manuel indirme gerekebilir"
             rm -f /tmp/frontend.tar.gz
-            echo "<html><body><h1>ServerPanel</h1><p>Frontend yüklenemedi.</p></body></html>" > "$INSTALL_DIR/public/index.html"
+            # Fallback: Boş index.html oluştur
+            echo "<html><body><h1>ServerPanel</h1><p>Frontend yüklenemedi. Manuel olarak yükleyin.</p></body></html>" > "$INSTALL_DIR/public/index.html"
         fi
     else
-        log_warn "Frontend indirilemedi"
-        log_info "Manuel indirme: wget -O /tmp/f.tar.gz '$FRONTEND_URL' && tar -xzf /tmp/f.tar.gz -C $INSTALL_DIR/public"
-        echo "<html><body><h1>ServerPanel</h1><p>Frontend yüklenemedi.</p></body></html>" > "$INSTALL_DIR/public/index.html"
+        log_warn "Frontend indirilemedi - Manuel indirme gerekebilir"
+        echo "<html><body><h1>ServerPanel</h1><p>Frontend yüklenemedi. Manuel olarak yükleyin.</p></body></html>" > "$INSTALL_DIR/public/index.html"
     fi
 }
 

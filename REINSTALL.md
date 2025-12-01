@@ -3,7 +3,7 @@
 ## 🗑️ Hızlı Temizlik (Tek Komut)
 
 ```bash
-systemctl stop serverpanel mysql apache2 php8.1-fpm bind9 2>/dev/null; for u in $(awk -F: '$3>=1000 && $1!="nobody" && $1!="ubuntu" {print $1}' /etc/passwd); do pkill -9 -u "$u"; userdel -r "$u"; done 2>/dev/null; rm -rf /opt/serverpanel /var/lib/serverpanel /var/log/serverpanel /root/.serverpanel /etc/systemd/system/serverpanel.service /var/www/html/pma-signon.php /var/www/html/pma-logout.php; rm -f /etc/php/*/fpm/pool.d/*.conf /etc/apache2/conf-available/phpmyadmin-logout.conf /etc/apache2/conf-enabled/phpmyadmin-logout.conf 2>/dev/null; systemctl daemon-reload; echo "✅ Temizlendi"
+systemctl stop serverpanel mysql apache2 php8.1-fpm bind9 2>/dev/null; for u in $(awk -F: '$3>=1000 && $1!="nobody" && $1!="ubuntu" {print $1}' /etc/passwd); do pkill -9 -u "$u"; userdel -r "$u"; done 2>/dev/null; rm -rf /opt/serverpanel /var/lib/serverpanel /var/log/serverpanel /root/.serverpanel /etc/systemd/system/serverpanel.service /var/www/html/pma-signon.php; rm -f /etc/php/*/fpm/pool.d/*.conf 2>/dev/null; systemctl daemon-reload; echo "✅ Temizlendi"
 ```
 
 ## 🚀 Hızlı Kurulum (Tek Komut)
@@ -37,12 +37,9 @@ rm -rf /var/log/serverpanel
 rm -rf /root/.serverpanel
 rm -f /etc/systemd/system/serverpanel.service
 
-# 5. phpMyAdmin SSO dosyaları
+# 5. phpMyAdmin signon
 rm -f /var/www/html/pma-signon.php
-rm -f /var/www/html/pma-logout.php
 rm -f /usr/share/phpmyadmin/config.inc.php
-rm -f /etc/apache2/conf-available/phpmyadmin-logout.conf
-rm -f /etc/apache2/conf-enabled/phpmyadmin-logout.conf
 
 # 6. Systemd güncelle
 systemctl daemon-reload
@@ -74,8 +71,7 @@ rm -f /etc/php/*/fpm/pool.d/*.conf
 
 # Apache temizle
 rm -f /etc/apache2/sites-available/*.conf /etc/apache2/sites-enabled/*.conf
-rm -f /var/www/html/pma-signon.php /var/www/html/pma-logout.php
-rm -f /etc/apache2/conf-available/phpmyadmin-logout.conf /etc/apache2/conf-enabled/phpmyadmin-logout.conf
+rm -f /var/www/html/pma-signon.php
 rm -rf /etc/phpmyadmin /usr/share/phpmyadmin/config.inc.php
 
 # Cache temizle
