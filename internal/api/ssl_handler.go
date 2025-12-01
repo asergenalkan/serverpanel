@@ -32,7 +32,14 @@ type SSLCertificate struct {
 
 // ListSSLCertificates returns all SSL certificates for the user
 func (h *Handler) ListSSLCertificates(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	userInterface := c.Locals("user")
+	if userInterface == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Unauthorized",
+		})
+	}
+	user := userInterface.(*models.User)
 
 	var certificates []SSLCertificate
 
@@ -108,7 +115,14 @@ func (h *Handler) GetSSLCertificate(c *fiber.Ctx) error {
 		})
 	}
 
-	user := c.Locals("user").(*models.User)
+	userInterface := c.Locals("user")
+	if userInterface == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Unauthorized",
+		})
+	}
+	user := userInterface.(*models.User)
 
 	// Get domain
 	var domain string
@@ -168,7 +182,14 @@ func (h *Handler) IssueSSLCertificate(c *fiber.Ctx) error {
 		})
 	}
 
-	user := c.Locals("user").(*models.User)
+	userInterface := c.Locals("user")
+	if userInterface == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Unauthorized",
+		})
+	}
+	user := userInterface.(*models.User)
 
 	// Get domain info
 	var domain, username string
@@ -248,7 +269,14 @@ func (h *Handler) RenewSSLCertificate(c *fiber.Ctx) error {
 		})
 	}
 
-	user := c.Locals("user").(*models.User)
+	userInterface := c.Locals("user")
+	if userInterface == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Unauthorized",
+		})
+	}
+	user := userInterface.(*models.User)
 
 	// Get domain
 	var domain string
@@ -293,7 +321,14 @@ func (h *Handler) RevokeSSLCertificate(c *fiber.Ctx) error {
 		})
 	}
 
-	user := c.Locals("user").(*models.User)
+	userInterface := c.Locals("user")
+	if userInterface == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Unauthorized",
+		})
+	}
+	user := userInterface.(*models.User)
 
 	// Get domain
 	var domain, username string
