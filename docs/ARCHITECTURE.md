@@ -23,14 +23,39 @@ Admin giriş yapar
 │
 ├── Dosya Yöneticisi → ✅ Tam fonksiyonel!
 │   ├── Dosya/klasör listeleme, oluşturma, silme
-│   ├── Dosya yükleme (drag & drop, çoklu dosya)
+│   ├── Dosya yükleme (drag & drop, çoklu dosya, progress bar)
 │   ├── Dosya indirme
 │   ├── Dosya düzenleme (code editor)
 │   ├── Kopyalama/Taşıma (Cut/Copy/Paste)
 │   ├── Zip/Unzip (Archive)
 │   ├── Dosya arama
 │   ├── Resim önizleme
+│   ├── 512MB yükleme limiti
 │   └── Dark mode + ESC modal kapatma
+│
+├── SSL/Let's Encrypt → ✅ Tam fonksiyonel!
+│   ├── Tek tıkla SSL sertifikası alma
+│   ├── Otomatik yenileme (cron job)
+│   ├── SSL durumu görüntüleme
+│   ├── Sertifika yenileme
+│   └── Sertifika iptal etme
+│
+├── Veritabanı Yönetimi → ✅ Tam fonksiyonel!
+│   ├── MySQL veritabanı oluşturma/silme
+│   ├── Veritabanı kullanıcısı oluşturma
+│   ├── phpMyAdmin SSO (tek tıkla giriş)
+│   └── Veritabanı boyutu görüntüleme
+│
+├── MultiPHP Yönetimi → ✅ Tam fonksiyonel!
+│   ├── PHP versiyon seçimi (7.4, 8.0, 8.1, 8.2, 8.3)
+│   ├── PHP INI ayarları düzenleme
+│   │   ├── memory_limit
+│   │   ├── max_execution_time
+│   │   ├── upload_max_filesize
+│   │   ├── post_max_size
+│   │   └── display_errors
+│   ├── Paket bazlı PHP limitleri
+│   └── PHP-FPM pool otomatik güncelleme
 ```
 
 ### 📋 Hedef (Devam Eden)
@@ -46,21 +71,27 @@ Admin (WHM benzeri):
 ├── ✅ Domain atar
 │   ├── ✅ Apache vhost: /etc/apache2/sites-available/domain.com
 │   ├── ✅ Document root: /home/username/public_html
-│   ├── ⏳ SSL config: Let's Encrypt için hazırlık
+│   ├── ✅ SSL config: Let's Encrypt entegrasyonu
 │   └── ✅ DNS zone: BIND9
+│
+├── ✅ Paket limitleri belirler
+│   ├── ✅ max_php_memory (PHP bellek limiti)
+│   ├── ✅ max_php_upload (Yükleme boyutu limiti)
+│   └── ✅ max_php_execution_time (Çalışma süresi limiti)
 
 Kullanıcı (cPanel benzeri):
 ├── ✅ Kendi hesabına giriş yapar
 ├── ✅ Sadece kendi kaynaklarını görür
 ├── ✅ Dosya Yöneticisi ile dosyalarını yönetir
 │   ├── ✅ Dosya/klasör listeleme, oluşturma, silme
-│   ├── ✅ Dosya yükleme (drag & drop)
+│   ├── ✅ Dosya yükleme (drag & drop, çoklu, progress bar)
 │   ├── ✅ Dosya düzenleme (code editor)
 │   ├── ✅ Dosya kopyalama/taşıma
 │   ├── ✅ Zip/Unzip (Archive)
 │   └── ✅ Resim önizleme
-├── ⏳ Kendi domainlerini yönetir
-├── ⏳ Kendi veritabanlarını yönetir
+├── ✅ SSL sertifikası alır/yönetir
+├── ✅ Kendi veritabanlarını yönetir (phpMyAdmin SSO)
+├── ✅ PHP ayarlarını düzenler (paket limitleri dahilinde)
 └── ⏳ Kendi mail hesaplarını yönetir
 ```
 
@@ -232,15 +263,20 @@ func sanitizePath(path string) string {
 7. [x] Hesap silme akışı (tam temizlik)
 8. [x] Tek komutla kurulum scripti
 
-### 🔄 Faz 1 - MVP (Devam Ediyor)
+### ✅ Faz 1 - MVP (TAMAMLANDI!)
 1. [x] Hesap yönetimi UI (Admin)
-2. [ ] Kullanıcının kendi paneli
+2. [x] Kullanıcının kendi paneli
 3. [x] Domain ekleme (gerçek)
-4. [ ] Dosya yöneticisi
-5. [ ] MySQL veritabanı UI
+4. [x] Dosya yöneticisi (tam fonksiyonel)
+5. [x] MySQL veritabanı UI + phpMyAdmin SSO
+6. [x] SSL/Let's Encrypt entegrasyonu
+7. [x] MultiPHP yönetimi (versiyon + INI ayarları)
+8. [x] Paket bazlı PHP limitleri
 
-### ⏳ Faz 2 - Temel Hosting
-1. [ ] MySQL veritabanı yönetimi
-2. [ ] SSL/Let's Encrypt
+### 🔄 Faz 2 - Temel Hosting (Devam Ediyor)
+1. [x] MySQL veritabanı yönetimi ✅
+2. [x] SSL/Let's Encrypt ✅
 3. [ ] FTP hesapları
 4. [ ] Backup
+5. [ ] E-posta yönetimi
+6. [ ] Cron Jobs

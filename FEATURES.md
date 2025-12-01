@@ -14,10 +14,11 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 | Domain Yönetimi | ✅ | ✅ Çalışıyor | %60 |
 | DNS Yönetimi | ✅ | ✅ BIND9 | %50 |
 | E-posta Yönetimi | ✅ | ⚠️ API var | %10 |
-| Veritabanı Yönetimi | ✅ | ⚠️ API var | %20 |
-| Dosya Yönetimi | ✅ | ❌ | %0 |
+| Veritabanı Yönetimi | ✅ | ✅ phpMyAdmin SSO | %80 |
+| Dosya Yönetimi | ✅ | ✅ Tam fonksiyonel | %90 |
 | FTP Yönetimi | ✅ | ❌ | %0 |
-| SSL/TLS | ✅ | ✅ Let's Encrypt | %80 |
+| SSL/TLS | ✅ | ✅ Let's Encrypt | %90 |
+| PHP Yönetimi | ✅ | ✅ MultiPHP | %80 |
 | Backup | ✅ | ❌ | %0 |
 | Cron Jobs | ✅ | ❌ | %0 |
 | Güvenlik | ✅ | ⚠️ Temel | %20 |
@@ -642,10 +643,10 @@ Bir hosting müşterisinin temel ihtiyaçlarına göre sıralandı:
 
 ## 📈 İlerleme Durumu
 
-- **Tamamlanan**: 15+ özellik
+- **Tamamlanan**: 25+ özellik
 - **Devam Eden**: 3 özellik
-- **Bekleyen**: 140+ özellik
-- **Toplam İlerleme**: ~%15
+- **Bekleyen**: 130+ özellik
+- **Toplam İlerleme**: ~%25
 
 ### ✅ Son Tamamlanan Özellikler (2 Aralık 2025)
 - Tek komutla kurulum scripti (install.sh)
@@ -661,6 +662,19 @@ Bir hosting müşterisinin temel ihtiyaçlarına göre sıralandı:
   - Tek tıkla SSL sertifikası
   - Otomatik yenileme
   - SSL durumu görüntüleme
+- **Dosya Yöneticisi (Tam fonksiyonel)**
+  - Çoklu dosya yükleme + progress bar
+  - Drag & drop desteği
+  - Dosya düzenleme (code editor)
+  - Kopyalama/Taşıma/Silme
+  - Zip/Unzip (Archive)
+  - Resim önizleme
+  - 512MB yükleme limiti
+- **MultiPHP Yönetimi**
+  - PHP versiyon seçimi (7.4, 8.0, 8.1, 8.2, 8.3)
+  - PHP INI ayarları düzenleme
+  - Paket bazlı PHP limitleri
+  - memory_limit, upload_max_filesize, max_execution_time
 
 ---
 
