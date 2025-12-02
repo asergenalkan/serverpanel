@@ -130,11 +130,18 @@ webmail IN      CNAME   mail
 		zone += fmt.Sprintf("\n; MX Records\n@       IN      MX      10      mail.%s.\n", config.Domain)
 	}
 
-	// Add TXT records for SPF
+	// Add TXT records for SPF and DMARC
 	zone += fmt.Sprintf(`
-; TXT Records
+; TXT Records - Mail Security
+; SPF Record
 @       IN      TXT     "v=spf1 a mx ip4:%s ~all"
-`, config.IPAddress)
+
+; DMARC Record
+_dmarc  IN      TXT     "v=DMARC1; p=none; rua=mailto:postmaster@%s"
+
+; DKIM Record placeholder (will be updated when DKIM key is generated)
+; default._domainkey IN TXT "v=DKIM1; k=rsa; p=..."
+`, config.IPAddress, config.Domain)
 
 	return zone
 }

@@ -217,6 +217,12 @@ func (s *Service) CreateAccount(req CreateAccountRequest) (*Account, error) {
 		// Don't fail account creation if webmail vhost fails
 	}
 
+	// Setup mail for domain (DKIM, Postfix virtual domain)
+	if err := s.setupMailForDomain(req.Domain); err != nil {
+		log.Printf("Warning: failed to setup mail for domain: %v", err)
+		// Don't fail account creation if mail setup fails
+	}
+
 	if err := s.createWelcomePage(req.Username, req.Domain, documentRoot); err != nil {
 		log.Printf("Warning: failed to create welcome page: %v", err)
 	}
@@ -402,6 +408,102 @@ func (s *Service) createWebmailVhost(domain string) error {
 		log.Printf("✅ Webmail vhost created for: webmail.%s", domain)
 	}
 
+	return nil
+}
+
+// setupMailForDomain sets up mail infrastructure for a domain
+// Creates DKIM keys, adds domain to Postfix virtual domains, updates OpenDKIM config
+func (s *Service) setupMailForDomain(domain string) error {
+	if config.IsDevelopment() {
+		log.Printf("🔧 [SIMÜLASYON] Mail setup for domain: %s", domain)
+		return nil
+	}
+
+	// 1. Create DKIM key directory
+	dkimKeyDir := fmt.Sprintf("/etc/opendkim/keys/%s", domain)
+	if err := os.MkdirAll(dkimKeyDir, 0750); err != nil {
+		return fmt.Errorf("failed to create DKIM key directory: %w", err)
+	}
+
+	// 2. Generate DKIM key if not exists
+	privateKeyPath := filepath.Join(dkimKeyDir, "default.private")
+	if _, err := os.Stat(privateKeyPath); os.IsNotExist(err) {
+		cmd := exec.Command("opendkim-genkey", "-s", "default", "-d", domain)
+		cmd.Dir = dkimKeyDir
+		if output, err := cmd.CombinedOutput(); err != nil {
+			log.Printf("Warning: failed to generate DKIM key: %s - %v", string(output), err)
+		} else {
+			// Set permissions
+			exec.Command("chown", "opendkim:opendkim", privateKeyPath).Run()
+			exec.Command("chmod", "600", privateKeyPath).Run()
+			log.Printf("✅ DKIM key generated for: %s", domain)
+		}
+	}
+
+	// 3. Add domain to OpenDKIM KeyTable
+	keyTablePath := "/etc/opendkim/KeyTable"
+	keyTableEntry := fmt.Sprintf("default._domainkey.%s %s:default:%s/default.private\n", domain, domain, dkimKeyDir)
+	if content, err := os.ReadFile(keyTablePath); err == nil {
+		if !strings.Contains(string(content), domain) {
+			f, _ := os.OpenFile(keyTablePath, os.O_APPEND|os.O_WRONLY, 0644)
+			if f != nil {
+				f.WriteString(keyTableEntry)
+				f.Close()
+			}
+		}
+	}
+
+	// 4. Add domain to OpenDKIM SigningTable
+	signingTablePath := "/etc/opendkim/SigningTable"
+	signingTableEntry := fmt.Sprintf("*@%s default._domainkey.%s\n", domain, domain)
+	if content, err := os.ReadFile(signingTablePath); err == nil {
+		if !strings.Contains(string(content), domain) {
+			f, _ := os.OpenFile(signingTablePath, os.O_APPEND|os.O_WRONLY, 0644)
+			if f != nil {
+				f.WriteString(signingTableEntry)
+				f.Close()
+			}
+		}
+	}
+
+	// 5. Add domain to OpenDKIM TrustedHosts
+	trustedHostsPath := "/etc/opendkim/TrustedHosts"
+	if content, err := os.ReadFile(trustedHostsPath); err == nil {
+		if !strings.Contains(string(content), domain) {
+			f, _ := os.OpenFile(trustedHostsPath, os.O_APPEND|os.O_WRONLY, 0644)
+			if f != nil {
+				f.WriteString(domain + "\n")
+				f.Close()
+			}
+		}
+	}
+
+	// 6. Add domain to Postfix virtual domains
+	vdomainsPath := "/etc/postfix/vdomains"
+	vdomainsEntry := fmt.Sprintf("%s OK\n", domain)
+	if content, err := os.ReadFile(vdomainsPath); err == nil {
+		if !strings.Contains(string(content), domain) {
+			f, _ := os.OpenFile(vdomainsPath, os.O_APPEND|os.O_WRONLY, 0644)
+			if f != nil {
+				f.WriteString(vdomainsEntry)
+				f.Close()
+			}
+			// Rebuild postmap
+			exec.Command("postmap", vdomainsPath).Run()
+		}
+	}
+
+	// 7. Create mail directory for domain
+	mailDir := fmt.Sprintf("/var/mail/vhosts/%s", domain)
+	if err := os.MkdirAll(mailDir, 0770); err == nil {
+		exec.Command("chown", "-R", "vmail:vmail", mailDir).Run()
+	}
+
+	// 8. Reload services
+	exec.Command("systemctl", "reload", "opendkim").Run()
+	exec.Command("systemctl", "reload", "postfix").Run()
+
+	log.Printf("✅ Mail infrastructure setup for: %s", domain)
 	return nil
 }
 
