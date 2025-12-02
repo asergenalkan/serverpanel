@@ -3,7 +3,7 @@
 ## 🗑️ Hızlı Temizlik (Tek Komut)
 
 ```bash
-systemctl stop serverpanel mysql apache2 php8.1-fpm bind9 2>/dev/null; for u in $(awk -F: '$3>=1000 && $1!="nobody" && $1!="ubuntu" {print $1}' /etc/passwd); do pkill -9 -u "$u"; userdel -r "$u"; done 2>/dev/null; rm -rf /opt/serverpanel /var/lib/serverpanel /var/log/serverpanel /root/.serverpanel /etc/systemd/system/serverpanel.service /var/www/html/pma-signon.php; rm -f /etc/php/*/fpm/pool.d/*.conf 2>/dev/null; systemctl daemon-reload; echo "✅ Temizlendi"
+systemctl stop serverpanel mysql apache2 php8.1-fpm php8.3-fpm bind9 pure-ftpd 2>/dev/null; for u in $(awk -F: '$3>=1000 && $1!="nobody" && $1!="ubuntu" {print $1}' /etc/passwd); do pkill -9 -u "$u"; userdel -r "$u"; done 2>/dev/null; rm -rf /opt/serverpanel /var/lib/serverpanel /var/log/serverpanel /root/.serverpanel /etc/systemd/system/serverpanel.service /var/www/html/pma-signon.php /etc/bind/zones/* /etc/pure-ftpd/pureftpd.passwd /etc/pure-ftpd/pureftpd.pdb; rm -f /etc/php/*/fpm/pool.d/*.conf 2>/dev/null; rm -f /etc/apache2/sites-enabled/*.conf /etc/apache2/sites-available/*.conf 2>/dev/null; systemctl daemon-reload; echo "✅ Temizlendi"
 ```
 
 ## 🚀 Hızlı Kurulum (Tek Komut)
@@ -50,8 +50,8 @@ echo "✅ Temizlik tamamlandı!"
 ## ⚠️ Tam Temizlik (MySQL dahil)
 
 ```bash
-# Tüm servisleri durdur ve kaldır
-systemctl stop serverpanel mysql apache2 php8.1-fpm bind9 2>/dev/null
+# Tüm servisleri durdur
+systemctl stop serverpanel mysql apache2 php8.1-fpm php8.3-fpm bind9 pure-ftpd 2>/dev/null
 
 # Kullanıcıları sil
 for u in $(awk -F: '$3>=1000 && $1!="nobody" && $1!="ubuntu" {print $1}' /etc/passwd); do
@@ -73,6 +73,15 @@ rm -f /etc/php/*/fpm/pool.d/*.conf
 rm -f /etc/apache2/sites-available/*.conf /etc/apache2/sites-enabled/*.conf
 rm -f /var/www/html/pma-signon.php
 rm -rf /etc/phpmyadmin /usr/share/phpmyadmin/config.inc.php
+
+# DNS zone temizle
+rm -rf /etc/bind/zones/*
+cat > /etc/bind/named.conf.local << 'EOF'
+// ServerPanel DNS Zone Configuration
+EOF
+
+# FTP temizle
+rm -f /etc/pure-ftpd/pureftpd.passwd /etc/pure-ftpd/pureftpd.pdb
 
 # Cache temizle
 apt-get autoremove -y
