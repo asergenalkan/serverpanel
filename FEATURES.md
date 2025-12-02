@@ -11,7 +11,7 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 | Authentication | ✅ | ✅ | %100 |
 | Dashboard | ✅ | ✅ | %80 |
 | Kullanıcı Yönetimi | ✅ | ✅ Çalışıyor | %70 |
-| Domain Yönetimi | ✅ | ✅ Çalışıyor | %60 |
+| Domain Yönetimi | ✅ | ✅ Tam UI + Subdomain | %90 |
 | DNS Yönetimi | ✅ | ✅ BIND9 Zone Editor + Search | %90 |
 | E-posta Yönetimi | ✅ | ⚠️ API var | %10 |
 | Veritabanı Yönetimi | ✅ | ✅ phpMyAdmin SSO | %80 |
@@ -104,19 +104,25 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 ### Mevcut ✅
 - [x] Domain listeleme API
 - [x] Domain ekleme/silme API
-
-### Eksik Özellikler
-- [ ] **Domain Yönetim Arayüzü**
-  - Domain listesi sayfası
+- [x] **Domain Yönetim Arayüzü** ✅
+  - Domain listesi sayfası (tab görünümü)
   - Domain ekleme formu
-  - Domain detay sayfası
-- [ ] **Addon Domains**
+  - Paket limitleri kontrolü
+  - Domain tipi (primary, addon, alias)
+- [x] **Addon Domains** ✅
   - Ana domain'e ek domain ekleme
   - Ayrı document root
-- [ ] **Subdomain Yönetimi**
-  - Subdomain oluşturma
-  - Wildcard subdomain
-  - Subdomain yönlendirme
+  - Otomatik Apache vhost
+  - Otomatik DNS zone
+- [x] **Subdomain Yönetimi** ✅
+  - Subdomain oluşturma/silme
+  - Subdomain yönlendirme (301/302)
+  - Otomatik DNS A kaydı
+  - Otomatik Apache vhost
+
+### Eksik Özellikler
+- [ ] **Wildcard Subdomain**
+  - *.domain.com desteği
 - [ ] **Domain Alias (Parked Domains)**
   - Aynı içeriği farklı domain'de gösterme
 - [ ] **Domain Yönlendirme**
@@ -648,7 +654,7 @@ Bir hosting müşterisinin temel ihtiyaçlarına göre sıralandı:
 | 11 | Cron Jobs | Zamanlanmış görevler | ⏳ Bekliyor |
 | 12 | PHP Sürüm Seçimi | Farklı PHP versiyonları | ⏳ Bekliyor |
 | 13 | SSH/Terminal Erişimi | Geliştiriciler için | ⏳ Bekliyor |
-| 14 | Subdomain Yönetimi | blog.domain.com | ⏳ Bekliyor |
+| 14 | Subdomain Yönetimi | blog.domain.com | ✅ Tamam |
 | 15 | Error Logs | Hata ayıklama | ⏳ Bekliyor |
 
 ### 🎯 Faz 4 - Reseller & Enterprise
@@ -723,6 +729,14 @@ Bir hosting müşterisinin temel ihtiyaçlarına göre sıralandı:
   - Paket oluşturma/düzenleme/silme
   - PHP ayarları (memory, upload, execution time)
   - Disk, bant genişliği, domain, veritabanı, e-posta, FTP limitleri
+- **Domain & Subdomain Yönetimi**
+  - Domain ekleme/silme (addon domain)
+  - Subdomain ekleme/silme
+  - Yönlendirme desteği (301/302)
+  - Paket limitleri kontrolü
+  - Otomatik Apache vhost oluşturma
+  - Otomatik DNS zone/kayıt oluşturma
+  - Kullanım limitleri gösterimi
 
 ---
 

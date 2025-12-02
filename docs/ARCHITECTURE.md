@@ -80,6 +80,15 @@ Admin giriş yapar
 │   ├── Disk, bant genişliği, domain, veritabanı, e-posta, FTP limitleri
 │   ├── PHP ayarları (memory, upload, execution time)
 │   └── Kullanıcı sayısı gösterimi
+│
+├── Domain & Subdomain Yönetimi → ✅ Tam fonksiyonel!
+│   ├── Domain ekleme/silme (addon domain)
+│   ├── Subdomain ekleme/silme
+│   ├── Yönlendirme desteği (301/302)
+│   ├── Paket limitleri kontrolü
+│   ├── Otomatik Apache vhost oluşturma
+│   ├── Otomatik DNS zone/kayıt oluşturma
+│   └── Kullanım limitleri gösterimi
 ```
 
 ### 📋 Hedef (Devam Eden)
@@ -303,9 +312,10 @@ func sanitizePath(path string) string {
 3. [x] FTP hesapları (Pure-FTPd) ✅
 4. [x] DNS Zone Editor (BIND9) + Arama ✅
 5. [x] Paket Yönetimi UI ✅
-6. [ ] Backup
-7. [ ] E-posta yönetimi
-8. [ ] Cron Jobs
+6. [x] Domain & Subdomain Yönetimi ✅
+7. [ ] Backup
+8. [ ] E-posta yönetimi
+9. [ ] Cron Jobs
 
 ### ✅ UI/UX İyileştirmeleri (TAMAMLANDI!)
 1. [x] Merkezi tema renk sistemi (CSS variables)
@@ -315,3 +325,4 @@ func sanitizePath(path string) string {
 5. [x] phpMyAdmin blowfish_secret otomatik yapılandırma
 6. [x] DNS Zone Editor kayıt arama çubuğu
 7. [x] Paket Yönetimi sayfası (grid görünümü, modal'lar)
+8. [x] Domain & Subdomain Yönetimi (tab görünümü, limit kontrolü)
