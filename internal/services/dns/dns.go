@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -201,8 +202,37 @@ func (m *Manager) Reload() error {
 
 // AddRecord adds a DNS record to an existing zone
 func (m *Manager) AddRecord(domain, recordType, name, value string, ttl int) error {
-	// This would modify the zone file and increment serial
-	// Simplified for now
+	zoneFile := filepath.Join(m.GetZonePath(), "db."+domain)
+
+	// Check if zone file exists
+	if _, err := os.Stat(zoneFile); os.IsNotExist(err) {
+		return fmt.Errorf("zone file not found: %s", zoneFile)
+	}
+
+	// Read existing zone file
+	content, err := os.ReadFile(zoneFile)
+	if err != nil {
+		return fmt.Errorf("failed to read zone file: %w", err)
+	}
+
+	// Check if record already exists
+	if strings.Contains(string(content), name+"\tIN\t") || strings.Contains(string(content), name+" IN ") {
+		log.Printf("⚠️ DNS record already exists: %s.%s", name, domain)
+		return nil
+	}
+
+	// Append new record
+	newRecord := fmt.Sprintf("\n%s\tIN\t%s\t%s\n", name, recordType, value)
+	f, err := os.OpenFile(zoneFile, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open zone file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(newRecord); err != nil {
+		return fmt.Errorf("failed to write record: %w", err)
+	}
+
 	log.Printf("📝 DNS record added: %s.%s %s %s", name, domain, recordType, value)
 	return m.Reload()
 }
