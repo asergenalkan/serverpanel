@@ -10,6 +10,7 @@ import Databases from '@/pages/Databases';
 import SSL from '@/pages/SSL';
 import PHPSettings from '@/pages/PHPSettings';
 import FTPAccounts from '@/pages/FTPAccounts';
+import DNSZoneEditor from '@/pages/DNSZoneEditor';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -141,6 +142,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <FTPAccounts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dns"
+        element={
+          <ProtectedRoute>
+            <DNSZoneEditor />
           </ProtectedRoute>
         }
       />

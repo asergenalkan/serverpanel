@@ -21,6 +21,7 @@ import {
   Moon,
   Code,
   Upload,
+  Globe2,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -35,6 +36,7 @@ const userMenuItems = [
   { icon: Upload, label: 'FTP Hesapları', href: '/ftp' },
   { icon: Shield, label: 'SSL/TLS', href: '/ssl' },
   { icon: Code, label: 'PHP Ayarları', href: '/php' },
+  { icon: Globe2, label: 'DNS Zone Editor', href: '/dns' },
   { icon: Mail, label: 'E-posta', href: '/email', disabled: true },
   { icon: HardDrive, label: 'Backup', href: '/backup', disabled: true },
   { icon: Clock, label: 'Cron Jobs', href: '/cron', disabled: true },
@@ -49,6 +51,7 @@ const adminMenuItems = [
   { icon: Upload, label: 'FTP Hesapları', href: '/ftp' },
   { icon: Shield, label: 'SSL/TLS', href: '/ssl' },
   { icon: Code, label: 'PHP Ayarları', href: '/php' },
+  { icon: Globe2, label: 'DNS Zone Editor', href: '/dns' },
   { icon: Package, label: 'Paketler', href: '/packages', disabled: true },
   { icon: Settings, label: 'Ayarlar', href: '/settings', disabled: true },
 ];

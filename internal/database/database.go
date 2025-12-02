@@ -188,7 +188,23 @@ func (db *DB) migrate() error {
 			FOREIGN KEY (package_id) REFERENCES packages(id)
 		)`,
 
+		// DNS Records table
+		`CREATE TABLE IF NOT EXISTS dns_records (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			domain_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			type TEXT NOT NULL,
+			content TEXT NOT NULL,
+			ttl INTEGER DEFAULT 3600,
+			priority INTEGER DEFAULT 0,
+			active INTEGER DEFAULT 1,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE
+		)`,
+
 		// Create indexes
+		`CREATE INDEX IF NOT EXISTS idx_dns_records_domain_id ON dns_records(domain_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_domains_user_id ON domains(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_databases_user_id ON databases(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_database_users_user_id ON database_users(user_id)`,

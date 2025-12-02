@@ -173,6 +173,32 @@ export const filesAPI = {
   info: (path: string) => api.get('/files/info', { params: { path } }),
 };
 
+// DNS Management
+export const dnsAPI = {
+  // DNS Zones
+  listZones: () => api.get('/dns/zones'),
+  getZone: (domainId: number) => api.get(`/dns/zones/${domainId}`),
+  resetZone: (domainId: number) => api.post(`/dns/zones/${domainId}/reset`),
+  
+  // DNS Records
+  createRecord: (data: {
+    domain_id: number;
+    name: string;
+    type: string;
+    content: string;
+    ttl?: number;
+    priority?: number;
+  }) => api.post('/dns/records', data),
+  updateRecord: (id: number, data: {
+    name: string;
+    type: string;
+    content: string;
+    ttl?: number;
+    priority?: number;
+  }) => api.put(`/dns/records/${id}`, data),
+  deleteRecord: (id: number) => api.delete(`/dns/records/${id}`),
+};
+
 // FTP Management
 export const ftpAPI = {
   // FTP Accounts

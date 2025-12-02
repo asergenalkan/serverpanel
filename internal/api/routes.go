@@ -105,6 +105,14 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Get("/ftp/status", admin, h.GetFTPServerStatus)
 	protected.Post("/ftp/restart", admin, h.RestartFTPServer)
 
+	// DNS Management (all authenticated users)
+	protected.Get("/dns/zones", h.ListDNSZones)
+	protected.Get("/dns/zones/:id", h.GetDNSZone)
+	protected.Post("/dns/records", h.CreateDNSRecord)
+	protected.Put("/dns/records/:id", h.UpdateDNSRecord)
+	protected.Delete("/dns/records/:id", h.DeleteDNSRecord)
+	protected.Post("/dns/zones/:id/reset", h.ResetDNSZone)
+
 	// File Manager (all authenticated users)
 	protected.Get("/files/list", h.ListFiles)
 	protected.Get("/files/read", h.ReadFile)
