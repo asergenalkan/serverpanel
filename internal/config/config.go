@@ -16,6 +16,7 @@ type Config struct {
 	SimulateBasePath string // Base path for simulation files
 	WebServer        string // "apache" or "nginx" - default: apache
 	PHPVersion       string // e.g., "8.2"
+	ServerIP         string // Server IP address
 	IsLinux          bool
 	SimulateMode     bool // true if running in simulation mode
 }
@@ -66,6 +67,7 @@ func Load() *Config {
 		SimulateBasePath: simulateBasePath,
 		WebServer:        webServer,
 		PHPVersion:       getEnv("PHP_VERSION", "8.2"),
+		ServerIP:         getEnv("SERVER_IP", "127.0.0.1"),
 		IsLinux:          isLinux,
 		SimulateMode:     simulateMode,
 	}

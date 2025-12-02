@@ -59,9 +59,16 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 
 	// Domains (all authenticated users)
 	protected.Get("/domains", h.ListDomains)
+	protected.Get("/domains/limits", h.GetUserLimits)
 	protected.Post("/domains", h.CreateDomain)
 	protected.Get("/domains/:id", h.GetDomain)
+	protected.Put("/domains/:id", h.UpdateDomain)
 	protected.Delete("/domains/:id", h.DeleteDomain)
+
+	// Subdomains (all authenticated users)
+	protected.Get("/subdomains", h.ListSubdomains)
+	protected.Post("/subdomains", h.CreateSubdomain)
+	protected.Delete("/subdomains/:id", h.DeleteSubdomain)
 
 	// Databases (all authenticated users)
 	protected.Get("/databases", h.ListDatabases)

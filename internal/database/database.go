@@ -76,17 +76,37 @@ func (db *DB) migrate() error {
 		)`,
 
 		// Domains table
+		// domain_type: 'primary' (ana domain), 'addon' (ek domain), 'alias' (parked domain)
 		`CREATE TABLE IF NOT EXISTS domains (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id INTEGER NOT NULL,
 			name TEXT UNIQUE NOT NULL,
+			domain_type TEXT DEFAULT 'primary',
+			parent_domain_id INTEGER,
 			document_root TEXT,
 			php_version TEXT DEFAULT '8.1',
 			ssl_enabled INTEGER DEFAULT 0,
 			ssl_expiry DATETIME,
 			active INTEGER DEFAULT 1,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY (parent_domain_id) REFERENCES domains(id) ON DELETE CASCADE
+		)`,
+
+		// Subdomains table
+		`CREATE TABLE IF NOT EXISTS subdomains (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			domain_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			full_name TEXT UNIQUE NOT NULL,
+			document_root TEXT,
+			redirect_url TEXT,
+			redirect_type TEXT,
+			active INTEGER DEFAULT 1,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE
 		)`,
 
 		// PHP Settings table (per domain)

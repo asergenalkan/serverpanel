@@ -22,6 +22,7 @@ import {
   Code,
   Upload,
   Globe2,
+  Layers,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -31,6 +32,7 @@ interface LayoutProps {
 // User menu items (for hosting users)
 const userMenuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+  { icon: Layers, label: 'Domain Yönetimi', href: '/domain-manager' },
   { icon: FolderOpen, label: 'Dosya Yöneticisi', href: '/files' },
   { icon: Database, label: 'Veritabanları', href: '/databases' },
   { icon: Upload, label: 'FTP Hesapları', href: '/ftp' },
@@ -46,6 +48,7 @@ const userMenuItems = [
 const adminMenuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
   { icon: Users, label: 'Hosting Hesapları', href: '/accounts' },
+  { icon: Layers, label: 'Domain Yönetimi', href: '/domain-manager' },
   { icon: Globe, label: 'Tüm Domainler', href: '/domains' },
   { icon: Database, label: 'Veritabanları', href: '/databases' },
   { icon: Upload, label: 'FTP Hesapları', href: '/ftp' },

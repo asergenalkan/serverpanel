@@ -88,8 +88,18 @@ export const packagesAPI = {
 export const domainsAPI = {
   list: () => api.get('/domains'),
   get: (id: number) => api.get(`/domains/${id}`),
-  create: (data: { name: string; document_root?: string }) => api.post('/domains', data),
+  getLimits: () => api.get('/domains/limits'),
+  create: (data: { name: string; domain_type?: string; document_root?: string }) => api.post('/domains', data),
+  update: (id: number, data: { document_root?: string; php_version?: string; active?: boolean }) => api.put(`/domains/${id}`, data),
   delete: (id: number) => api.delete(`/domains/${id}`),
+};
+
+// Subdomains
+export const subdomainsAPI = {
+  list: () => api.get('/subdomains'),
+  create: (data: { domain_id: number; name: string; document_root?: string; redirect_url?: string; redirect_type?: string }) => 
+    api.post('/subdomains', data),
+  delete: (id: number) => api.delete(`/subdomains/${id}`),
 };
 
 // Databases
