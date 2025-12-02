@@ -9,6 +9,7 @@ import (
 
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // TaskStatus represents the status of a running task
@@ -44,8 +45,38 @@ func WebSocketUpgrade() fiber.Handler {
 	}
 }
 
+// validateToken validates JWT token and returns claims
+func (h *Handler) validateToken(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(h.cfg.JWTSecret), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	}
+	return nil, fmt.Errorf("invalid token")
+}
+
 // HandleTaskWebSocket handles WebSocket connections for task logs
 func (h *Handler) HandleTaskWebSocket(c *websocket.Conn) {
+	// Verify token from query parameter
+	token := c.Query("token")
+	if token == "" {
+		c.WriteJSON(map[string]string{"error": "token required"})
+		c.Close()
+		return
+	}
+
+	// Validate token and check admin role
+	claims, err := h.validateToken(token)
+	if err != nil || claims["role"] != "admin" {
+		c.WriteJSON(map[string]string{"error": "unauthorized"})
+		c.Close()
+		return
+	}
+
 	taskID := c.Params("task_id")
 	if taskID == "" {
 		c.WriteJSON(map[string]string{"error": "task_id required"})
