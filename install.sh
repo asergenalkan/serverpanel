@@ -1016,6 +1016,50 @@ Alias /webmail /usr/share/roundcube
 RCAPACHE
 
     a2enconf roundcube > /dev/null 2>&1
+    
+    # 4. ACME challenge dizinini oluştur (Let's Encrypt SSL için)
+    log_progress "ACME challenge dizini oluşturuluyor"
+    mkdir -p /var/www/html/.well-known/acme-challenge
+    chmod -R 755 /var/www/html/.well-known
+    chown -R www-data:www-data /var/www/html/.well-known
+    log_done "ACME challenge dizini hazır"
+    
+    # 5. Varsayılan webmail vhost template'i oluştur
+    log_progress "Webmail vhost template oluşturuluyor"
+    cat > /etc/apache2/sites-available/webmail-template.conf.disabled << 'WEBMAILTPL'
+# Webmail Virtual Host Template
+# Bu dosya yeni domain eklendiğinde kopyalanır
+# Kullanım: cp webmail-template.conf.disabled webmail.DOMAIN.conf
+#           sed -i 's/DOMAIN_PLACEHOLDER/domain.com/g' webmail.DOMAIN.conf
+#           a2ensite webmail.DOMAIN.conf
+<VirtualHost *:80>
+    ServerName webmail.DOMAIN_PLACEHOLDER
+    
+    # ACME challenge için - SSL sertifikası alımı
+    Alias /.well-known/acme-challenge/ /var/www/html/.well-known/acme-challenge/
+    <Directory "/var/www/html/.well-known/acme-challenge/">
+        Options None
+        AllowOverride None
+        ForceType text/plain
+        Require all granted
+    </Directory>
+    
+    # Roundcube
+    DocumentRoot /usr/share/roundcube
+    
+    <Directory /usr/share/roundcube>
+        Options +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+    
+    <Directory /usr/share/roundcube/config>
+        Require all denied
+    </Directory>
+</VirtualHost>
+WEBMAILTPL
+    log_done "Webmail vhost template hazır"
+    
     systemctl reload apache2 > /dev/null 2>&1
     
     log_done "Roundcube yapılandırıldı"
@@ -1064,7 +1108,23 @@ configure_apache() {
     echo "<h1>ServerPanel</h1><p>Server is running.</p>" > /var/www/html/index.html
     chown www-data:www-data /var/www/html/index.html
     
-    # 6. Default site oluştur
+    # 6. ACME challenge için global config oluştur
+    log_progress "Let's Encrypt ACME config oluşturuluyor"
+    cat > /etc/apache2/conf-available/letsencrypt-acme.conf << 'ACMECONF'
+# Let's Encrypt ACME Challenge - Global Config
+# Tüm domain'ler için .well-known/acme-challenge dizinini /var/www/html'e yönlendirir
+Alias /.well-known/acme-challenge/ /var/www/html/.well-known/acme-challenge/
+<Directory "/var/www/html/.well-known/acme-challenge/">
+    Options None
+    AllowOverride None
+    ForceType text/plain
+    Require all granted
+</Directory>
+ACMECONF
+    a2enconf letsencrypt-acme > /dev/null 2>&1
+    log_done "ACME config oluşturuldu"
+    
+    # 7. Default site oluştur
     log_progress "Default site oluşturuluyor"
     cat > /etc/apache2/sites-available/000-default.conf << APACHEEOF
 <VirtualHost *:80>
