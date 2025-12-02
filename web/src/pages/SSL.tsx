@@ -150,13 +150,13 @@ export default function SSL() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-emerald-100 text-emerald-900 border border-emerald-400 font-semibold dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700';
+        return 'px-2.5 py-0.5 rounded-full text-xs font-semibold border text-white bg-emerald-600 border-emerald-700 dark:bg-emerald-600 dark:border-emerald-700';
       case 'expired':
-        return 'bg-rose-100 text-rose-900 border border-rose-400 font-semibold dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800';
+        return 'px-2.5 py-0.5 rounded-full text-xs font-semibold border text-white bg-rose-600 border-rose-700 dark:bg-rose-600 dark:border-rose-700';
       case 'pending':
-        return 'bg-amber-100 text-amber-900 border border-amber-400 font-semibold dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800';
+        return 'px-2.5 py-0.5 rounded-full text-xs font-semibold border text-white bg-amber-600 border-amber-700 dark:bg-amber-600 dark:border-amber-700';
       default:
-        return 'bg-gray-100 text-gray-900 border border-gray-400 font-semibold dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
+        return 'px-2.5 py-0.5 rounded-full text-xs font-semibold border text-white bg-gray-600 border-gray-700 dark:bg-gray-600 dark:border-gray-700';
     }
   };
 
@@ -287,7 +287,7 @@ export default function SSL() {
                             {cert.domain}
                           </h3>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(cert.status)}`}>
+                            <span className={getStatusColor(cert.status)}>
                               {getStatusText(cert.status)}
                             </span>
                             {cert.issuer && (
