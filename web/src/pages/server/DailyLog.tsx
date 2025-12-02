@@ -95,9 +95,9 @@ export default function DailyLogPage() {
       {/* Info Note */}
       <div className="bg-blue-500/10 text-blue-600 dark:text-blue-400 p-4 rounded-lg text-sm">
         <p>
-          <strong>Not:</strong> Bu script sadece cPanel kullanıcısı olarak çalışan CGI CPU/bellek
-          kullanımını takip eder. CPU yüzdeleri {logs.length > 0 ? 'çekirdek sayısına' : '12 CPU\'ya'} bölünerek
-          gerçek yüzdeyi gösterir.
+          <strong>Not:</strong> Bu sayfa her kullanıcının CPU ve bellek kullanımını gösterir. 
+          Değerler, kullanıcıya ait tüm işlemlerin (PHP-FPM, web istekleri, cron jobs vb.) 
+          toplam kaynak tüketimini yansıtır.
         </p>
       </div>
 
