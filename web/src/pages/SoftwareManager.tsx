@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import Layout from '@/components/Layout';
+import TaskModal from '@/components/TaskModal';
 import {
   Package,
   RefreshCw,
@@ -58,7 +59,11 @@ export default function SoftwareManager() {
   const [activeTab, setActiveTab] = useState<'php' | 'extensions' | 'apache' | 'software'>('php');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedPHP, setExpandedPHP] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  
+  // Task Modal state
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [currentTaskName, setCurrentTaskName] = useState('');
 
   useEffect(() => {
     fetchOverview();
@@ -78,100 +83,70 @@ export default function SoftwareManager() {
     }
   };
 
+  // Start a task with real-time logs
+  const startTask = async (type: string, action: string, target: string, phpVersion?: string) => {
+    const taskName = `${target} ${action === 'install' ? 'kurulumu' : action === 'uninstall' ? 'kaldırılması' : action === 'enable' ? 'etkinleştirilmesi' : 'devre dışı bırakılması'}`;
+    
+    try {
+      const response = await api.post('/tasks/start', {
+        type,
+        action,
+        target,
+        php_version: phpVersion,
+      });
+      
+      if (response.data.success) {
+        setCurrentTaskId(response.data.task_id);
+        setCurrentTaskName(taskName);
+        setTaskModalOpen(true);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'İşlem başlatılamadı');
+    }
+  };
+
+  const handleTaskComplete = (success: boolean) => {
+    if (success) {
+      fetchOverview();
+    }
+  };
+
+  const closeTaskModal = () => {
+    setTaskModalOpen(false);
+    setCurrentTaskId(null);
+    setCurrentTaskName('');
+  };
+
   const installPHP = async (version: string) => {
     if (!confirm(`PHP ${version} kurulacak. Bu işlem birkaç dakika sürebilir. Devam etmek istiyor musunuz?`)) return;
-    
-    setActionLoading(`php-install-${version}`);
-    try {
-      await api.post('/software/php/install', { version });
-      fetchOverview();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'PHP kurulumu başarısız');
-    } finally {
-      setActionLoading(null);
-    }
+    startTask('php', 'install', version);
   };
 
   const uninstallPHP = async (version: string) => {
     if (!confirm(`PHP ${version} kaldırılacak. Bu işlem geri alınamaz. Devam etmek istiyor musunuz?`)) return;
-    
-    setActionLoading(`php-uninstall-${version}`);
-    try {
-      await api.post('/software/php/uninstall', { version });
-      fetchOverview();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'PHP kaldırma başarısız');
-    } finally {
-      setActionLoading(null);
-    }
+    startTask('php', 'uninstall', version);
   };
 
   const installExtension = async (phpVersion: string, extension: string) => {
-    setActionLoading(`ext-install-${phpVersion}-${extension}`);
-    try {
-      await api.post('/software/php/extension/install', { php_version: phpVersion, extension });
-      fetchOverview();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Eklenti kurulumu başarısız');
-    } finally {
-      setActionLoading(null);
-    }
+    startTask('extension', 'install', extension, phpVersion);
   };
 
   const uninstallExtension = async (phpVersion: string, extension: string) => {
-    setActionLoading(`ext-uninstall-${phpVersion}-${extension}`);
-    try {
-      await api.post('/software/php/extension/uninstall', { php_version: phpVersion, extension });
-      fetchOverview();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Eklenti kaldırma başarısız');
-    } finally {
-      setActionLoading(null);
-    }
+    startTask('extension', 'uninstall', extension, phpVersion);
   };
 
   const toggleApacheModule = async (module: string, enable: boolean) => {
-    setActionLoading(`apache-${module}`);
-    try {
-      if (enable) {
-        await api.post('/software/apache/module/enable', { module });
-      } else {
-        await api.post('/software/apache/module/disable', { module });
-      }
-      fetchOverview();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Modül işlemi başarısız');
-    } finally {
-      setActionLoading(null);
-    }
+    startTask('apache', enable ? 'enable' : 'disable', module);
   };
 
   const installSoftware = async (pkg: string) => {
     if (!confirm(`${pkg} kurulacak. Devam etmek istiyor musunuz?`)) return;
-    
-    setActionLoading(`sw-install-${pkg}`);
-    try {
-      await api.post('/software/install', { package: pkg });
-      fetchOverview();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Paket kurulumu başarısız');
-    } finally {
-      setActionLoading(null);
-    }
+    startTask('software', 'install', pkg);
   };
 
   const uninstallSoftware = async (pkg: string) => {
     if (!confirm(`${pkg} kaldırılacak. Devam etmek istiyor musunuz?`)) return;
-    
-    setActionLoading(`sw-uninstall-${pkg}`);
-    try {
-      await api.post('/software/uninstall', { package: pkg });
-      fetchOverview();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Paket kaldırma başarısız');
-    } finally {
-      setActionLoading(null);
-    }
+    startTask('software', 'uninstall', pkg);
   };
 
   const installedPHPVersions = overview?.php_versions.filter(v => v.installed) || [];
@@ -310,16 +285,10 @@ export default function SoftwareManager() {
                               size="sm"
                               className="flex-1"
                               onClick={() => uninstallPHP(php.name.replace('php', ''))}
-                              disabled={actionLoading?.startsWith('php-') || installedPHPVersions.length <= 1}
+                              disabled={installedPHPVersions.length <= 1}
                             >
-                              {actionLoading === `php-uninstall-${php.name.replace('php', '')}` ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <Trash2 className="w-4 h-4 mr-1" />
-                                  Kaldır
-                                </>
-                              )}
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Kaldır
                             </Button>
                           ) : (
                             <Button
@@ -327,16 +296,9 @@ export default function SoftwareManager() {
                               size="sm"
                               className="flex-1"
                               onClick={() => installPHP(php.name.replace('php', ''))}
-                              disabled={actionLoading?.startsWith('php-')}
                             >
-                              {actionLoading === `php-install-${php.name.replace('php', '')}` ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <Download className="w-4 h-4 mr-1" />
-                                  Kur
-                                </>
-                              )}
+                              <Download className="w-4 h-4 mr-1" />
+                              Kur
                             </Button>
                           )}
                         </div>
@@ -389,7 +351,6 @@ export default function SoftwareManager() {
                               {installedPHPVersions.map(php => {
                                 const version = php.name.replace('php', '');
                                 const isInstalled = ext.php_versions.includes(version);
-                                const isLoading = actionLoading === `ext-${isInstalled ? 'uninstall' : 'install'}-${version}-${ext.name}`;
                                 
                                 return (
                                   <div key={version} className="flex items-center justify-between p-2 border rounded bg-background">
@@ -401,11 +362,8 @@ export default function SoftwareManager() {
                                         ? uninstallExtension(version, ext.name)
                                         : installExtension(version, ext.name)
                                       }
-                                      disabled={!!actionLoading}
                                     >
-                                      {isLoading ? (
-                                        <RefreshCw className="w-3 h-3 animate-spin" />
-                                      ) : isInstalled ? (
+                                      {isInstalled ? (
                                         <Trash2 className="w-3 h-3" />
                                       ) : (
                                         <Download className="w-3 h-3" />
@@ -444,11 +402,9 @@ export default function SoftwareManager() {
                           variant={mod.enabled ? 'destructive' : 'default'}
                           size="sm"
                           onClick={() => toggleApacheModule(mod.name, !mod.enabled)}
-                          disabled={actionLoading === `apache-${mod.name}` || !mod.available}
+                          disabled={!mod.available}
                         >
-                          {actionLoading === `apache-${mod.name}` ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : mod.enabled ? (
+                          {mod.enabled ? (
                             <>
                               <PowerOff className="w-4 h-4 mr-1" />
                               Devre Dışı
@@ -496,16 +452,9 @@ export default function SoftwareManager() {
                           size="sm"
                           className="w-full"
                           onClick={() => uninstallSoftware(sw.name)}
-                          disabled={actionLoading === `sw-uninstall-${sw.name}`}
                         >
-                          {actionLoading === `sw-uninstall-${sw.name}` ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Kaldır
-                            </>
-                          )}
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Kaldır
                         </Button>
                       ) : (
                         <Button
@@ -513,16 +462,9 @@ export default function SoftwareManager() {
                           size="sm"
                           className="w-full"
                           onClick={() => installSoftware(sw.name)}
-                          disabled={actionLoading === `sw-install-${sw.name}`}
                         >
-                          {actionLoading === `sw-install-${sw.name}` ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4 mr-1" />
-                              Kur
-                            </>
-                          )}
+                          <Download className="w-4 h-4 mr-1" />
+                          Kur
                         </Button>
                       )}
                     </CardContent>
@@ -533,6 +475,15 @@ export default function SoftwareManager() {
           </>
         )}
       </div>
+
+      {/* Task Modal */}
+      <TaskModal
+        isOpen={taskModalOpen}
+        onClose={closeTaskModal}
+        taskId={currentTaskId}
+        taskName={currentTaskName}
+        onComplete={handleTaskComplete}
+      />
     </Layout>
   );
 }

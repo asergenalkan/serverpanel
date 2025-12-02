@@ -5,6 +5,7 @@ import (
 	"github.com/asergenalkan/serverpanel/internal/database"
 	"github.com/asergenalkan/serverpanel/internal/middleware"
 	"github.com/asergenalkan/serverpanel/internal/models"
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -181,4 +182,12 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	// Server Features (all users - read only)
 	protected.Get("/server/features", h.GetServerFeatures)
 	protected.Get("/php/allowed-versions", h.GetAllowedPHPVersions)
+
+	// Task Management (admin only)
+	protected.Post("/tasks/start", admin, h.StartInstallTask)
+	protected.Get("/tasks/:task_id", admin, h.GetTaskStatus)
+
+	// WebSocket for task logs (admin only)
+	router.Use("/ws", WebSocketUpgrade())
+	router.Get("/ws/tasks/:task_id", websocket.New(h.HandleTaskWebSocket))
 }
