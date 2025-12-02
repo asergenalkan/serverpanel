@@ -10,8 +10,6 @@ import {
   RefreshCw,
   Trash2,
   Plus,
-  Clock,
-  Calendar,
   Globe,
   Loader2,
   CheckCircle,
@@ -22,9 +20,13 @@ import Layout from '@/components/Layout';
 interface SSLCertificate {
   id: number;
   domain_id: number;
+  subdomain_id?: number;
   domain: string;
+  domain_type: 'domain' | 'subdomain' | 'www' | 'mail';
+  parent_domain?: string;
   issuer: string;
-  status: 'active' | 'expired' | 'pending' | 'none';
+  status: 'active' | 'expired' | 'pending' | 'none' | 'error';
+  status_detail?: string;
   valid_from: string;
   valid_until: string;
   auto_renew: boolean;
@@ -35,9 +37,11 @@ interface SSLCertificate {
 export default function SSL() {
   const [certificates, setCertificates] = useState<SSLCertificate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
 
   const fetchCertificates = async () => {
     try {
@@ -58,7 +62,7 @@ export default function SSL() {
   }, []);
 
   const handleIssue = async (domainId: number, domain: string) => {
-    setActionLoading(domainId);
+    setActionLoading(`issue-${domainId}-${domain}`);
     setError('');
     setSuccess('');
     
@@ -78,7 +82,7 @@ export default function SSL() {
   };
 
   const handleRenew = async (domainId: number, domain: string) => {
-    setActionLoading(domainId);
+    setActionLoading(`renew-${domainId}-${domain}`);
     setError('');
     setSuccess('');
     
@@ -102,7 +106,7 @@ export default function SSL() {
       return;
     }
 
-    setActionLoading(domainId);
+    setActionLoading(`revoke-${domainId}-${domain}`);
     setError('');
     setSuccess('');
     
@@ -169,13 +173,6 @@ export default function SSL() {
     });
   };
 
-  const getDaysRemaining = (validUntil: string) => {
-    if (!validUntil) return null;
-    const now = new Date();
-    const expiry = new Date(validUntil);
-    const diff = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return diff;
-  };
 
   return (
     <Layout>
@@ -253,7 +250,35 @@ export default function SSL() {
           </CardContent>
         </Card>
 
-        {/* Certificates List */}
+        {/* Search and Filter */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Domain ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-4 pr-4 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+          <div className="flex gap-2">
+            {['all', 'active', 'none', 'expired'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                  filterStatus === status
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background border-border hover:bg-muted'
+                }`}
+              >
+                {status === 'all' ? 'Tümü' : status === 'active' ? 'Aktif' : status === 'none' ? 'SSL Yok' : 'Süresi Dolmuş'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Certificates Table */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
@@ -271,126 +296,142 @@ export default function SSL() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
-            {certificates.map((cert) => {
-              const daysRemaining = getDaysRemaining(cert.valid_until);
-              const isExpiringSoon = daysRemaining !== null && daysRemaining <= 30 && daysRemaining > 0;
-              
-              return (
-                <Card key={cert.domain_id} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="flex items-center justify-between p-4 border-b border-border">
-                      <div className="flex items-center gap-4">
-                        {getStatusIcon(cert.status)}
-                        <div>
-                          <h3 className="font-medium text-foreground">
-                            {cert.domain}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className={getStatusColor(cert.status)}>
-                              {getStatusText(cert.status)}
-                            </span>
-                            {cert.issuer && (
-                              <span className="text-xs text-muted-foreground">
-                                {cert.issuer}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        {cert.status === 'none' ? (
-                          <Button
-                            onClick={() => handleIssue(cert.domain_id, cert.domain)}
-                            disabled={actionLoading === cert.domain_id}
-                            size="sm"
-                          >
-                            {actionLoading === cert.domain_id ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : (
-                              <Plus className="h-4 w-4 mr-2" />
-                            )}
-                            SSL Al
-                          </Button>
-                        ) : (
-                          <>
-                            <Button
-                              onClick={() => handleRenew(cert.domain_id, cert.domain)}
-                              disabled={actionLoading === cert.domain_id}
-                              variant="outline"
-                              size="sm"
-                            >
-                              {actionLoading === cert.domain_id ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              ) : (
-                                <RefreshCw className="h-4 w-4 mr-2" />
-                              )}
-                              Yenile
-                            </Button>
-                            <Button
-                              onClick={() => handleRevoke(cert.domain_id, cert.domain)}
-                              disabled={actionLoading === cert.domain_id}
-                              variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {cert.status !== 'none' && (
-                      <div className="p-4 bg-muted/50 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">Başlangıç</p>
-                            <p className="text-sm font-medium text-foreground">
-                              {formatDate(cert.valid_from)}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">Bitiş</p>
-                            <p className={`text-sm font-medium ${
-                              cert.status === 'expired' 
-                                ? 'text-red-600 dark:text-red-400' 
-                                : isExpiringSoon 
-                                  ? 'text-yellow-600 dark:text-yellow-400'
-                                  : 'text-foreground'
-                            }`}>
-                              {formatDate(cert.valid_until)}
-                              {daysRemaining !== null && daysRemaining > 0 && (
-                                <span className="text-xs ml-1">
-                                  ({daysRemaining} gün kaldı)
+          <Card>
+            <CardContent className="p-0">
+              {/* Stats */}
+              <div className="p-4 border-b border-border bg-muted/30">
+                <p className="text-sm text-muted-foreground">
+                  Toplam <span className="font-medium text-foreground">{certificates.length}</span> domain gösteriliyor
+                  {filterStatus !== 'all' && ` (${filterStatus === 'active' ? 'Aktif' : filterStatus === 'none' ? 'SSL Yok' : 'Süresi Dolmuş'} filtresi)`}
+                </p>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="text-left p-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Alan Adı
+                      </th>
+                      <th className="text-left p-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Sertifika Durumu
+                      </th>
+                      <th className="text-right p-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        İşlemler
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {certificates
+                      .filter(cert => {
+                        const matchesSearch = cert.domain.toLowerCase().includes(searchQuery.toLowerCase());
+                        const matchesFilter = filterStatus === 'all' || cert.status === filterStatus;
+                        return matchesSearch && matchesFilter;
+                      })
+                      .map((cert, index) => {
+                        const loadingKey = `issue-${cert.domain_id}-${cert.domain}`;
+                        const renewKey = `renew-${cert.domain_id}-${cert.domain}`;
+                        const revokeKey = `revoke-${cert.domain_id}-${cert.domain}`;
+                        const isLoading = actionLoading === loadingKey || actionLoading === renewKey || actionLoading === revokeKey;
+
+                        return (
+                          <tr key={`${cert.domain}-${index}`} className="hover:bg-muted/30 transition-colors">
+                            {/* Domain Name */}
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                {getStatusIcon(cert.status)}
+                                <div>
+                                  <p className="font-medium text-foreground">{cert.domain}</p>
+                                  {cert.domain_type !== 'domain' && (
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                      cert.domain_type === 'subdomain' 
+                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                        : cert.domain_type === 'www'
+                                          ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                                          : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                                    }`}>
+                                      {cert.domain_type === 'subdomain' ? 'Subdomain' : cert.domain_type === 'www' ? 'WWW' : 'Mail'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Certificate Status */}
+                            <td className="p-4">
+                              <div>
+                                <span className={getStatusColor(cert.status)}>
+                                  {getStatusText(cert.status)}
                                 </span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">Otomatik Yenileme</p>
-                            <p className="text-sm font-medium text-primary">
-                              {cert.auto_renew ? 'Aktif' : 'Pasif'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                                {cert.status_detail && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {cert.status_detail}
+                                  </p>
+                                )}
+                                {cert.status === 'active' && cert.valid_until && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Bitiş: {formatDate(cert.valid_until)}
+                                  </p>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="p-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                {cert.domain_type === 'domain' && (
+                                  <>
+                                    {cert.status === 'none' ? (
+                                      <Button
+                                        onClick={() => handleIssue(cert.domain_id, cert.domain)}
+                                        disabled={isLoading}
+                                        size="sm"
+                                      >
+                                        {actionLoading === loadingKey ? (
+                                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        ) : (
+                                          <Plus className="h-4 w-4 mr-2" />
+                                        )}
+                                        SSL Al
+                                      </Button>
+                                    ) : (
+                                      <>
+                                        <Button
+                                          onClick={() => handleRenew(cert.domain_id, cert.domain)}
+                                          disabled={isLoading}
+                                          variant="outline"
+                                          size="sm"
+                                        >
+                                          {actionLoading === renewKey ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <RefreshCw className="h-4 w-4" />
+                                          )}
+                                        </Button>
+                                        <Button
+                                          onClick={() => handleRevoke(cert.domain_id, cert.domain)}
+                                          disabled={isLoading}
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </Layout>

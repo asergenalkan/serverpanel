@@ -17,86 +17,214 @@ import (
 
 // SSLCertificate represents an SSL certificate
 type SSLCertificate struct {
-	ID         int64     `json:"id"`
-	DomainID   int64     `json:"domain_id"`
-	Domain     string    `json:"domain"`
-	Issuer     string    `json:"issuer"`
-	Status     string    `json:"status"` // active, expired, pending, none
-	ValidFrom  time.Time `json:"valid_from"`
-	ValidUntil time.Time `json:"valid_until"`
-	AutoRenew  bool      `json:"auto_renew"`
-	CertPath   string    `json:"cert_path,omitempty"`
-	KeyPath    string    `json:"key_path,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID           int64     `json:"id"`
+	DomainID     int64     `json:"domain_id"`
+	SubdomainID  int64     `json:"subdomain_id,omitempty"`
+	Domain       string    `json:"domain"`
+	DomainType   string    `json:"domain_type"` // domain, subdomain, mail, www
+	ParentDomain string    `json:"parent_domain,omitempty"`
+	Issuer       string    `json:"issuer"`
+	Status       string    `json:"status"` // active, expired, pending, none, error
+	StatusDetail string    `json:"status_detail,omitempty"`
+	ValidFrom    time.Time `json:"valid_from"`
+	ValidUntil   time.Time `json:"valid_until"`
+	AutoRenew    bool      `json:"auto_renew"`
+	CertPath     string    `json:"cert_path,omitempty"`
+	KeyPath      string    `json:"key_path,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // ListSSLCertificates returns all SSL certificates for the user
+// Includes domains, subdomains, and standard subdomains (www, mail)
 func (h *Handler) ListSSLCertificates(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(int64)
 	role := c.Locals("role").(string)
 
 	var certificates []SSLCertificate
 
-	// Get domains for this user
-	var query string
-	var args []interface{}
+	// 1. Get all domains for this user
+	var domainQuery string
+	var domainArgs []interface{}
 
 	if role == models.RoleAdmin {
-		query = `SELECT d.id, d.name FROM domains d ORDER BY d.name`
+		domainQuery = `SELECT d.id, d.name, d.user_id FROM domains d ORDER BY d.name`
 	} else {
-		query = `SELECT d.id, d.name FROM domains d WHERE d.user_id = ? ORDER BY d.name`
-		args = append(args, userID)
+		domainQuery = `SELECT d.id, d.name, d.user_id FROM domains d WHERE d.user_id = ? ORDER BY d.name`
+		domainArgs = append(domainArgs, userID)
 	}
 
-	rows, err := h.db.Query(query, args...)
+	domainRows, err := h.db.Query(domainQuery, domainArgs...)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
 			Success: false,
 			Error:   "Failed to fetch domains",
 		})
 	}
-	defer rows.Close()
+	defer domainRows.Close()
 
-	for rows.Next() {
-		var domainID int64
-		var domain string
-		if err := rows.Scan(&domainID, &domain); err != nil {
+	type domainInfo struct {
+		ID     int64
+		Name   string
+		UserID int64
+	}
+	var domains []domainInfo
+
+	for domainRows.Next() {
+		var d domainInfo
+		if err := domainRows.Scan(&d.ID, &d.Name, &d.UserID); err != nil {
 			continue
 		}
+		domains = append(domains, d)
+	}
 
-		cert := SSLCertificate{
-			DomainID:  domainID,
-			Domain:    domain,
-			AutoRenew: true,
-		}
-
-		// Check if certificate exists
-		certInfo := h.getCertificateInfo(domain)
-		if certInfo != nil {
-			cert.Issuer = certInfo.Issuer
-			cert.ValidFrom = certInfo.ValidFrom
-			cert.ValidUntil = certInfo.ValidUntil
-			cert.CertPath = certInfo.CertPath
-			cert.KeyPath = certInfo.KeyPath
-
-			if time.Now().After(certInfo.ValidUntil) {
-				cert.Status = "expired"
-			} else if time.Now().Before(certInfo.ValidFrom) {
-				cert.Status = "pending"
-			} else {
-				cert.Status = "active"
-			}
-		} else {
-			cert.Status = "none"
-		}
-
+	// 2. For each domain, add the domain itself and standard subdomains
+	for _, domain := range domains {
+		// Main domain
+		cert := h.buildSSLCertificate(domain.ID, 0, domain.Name, "domain", "")
 		certificates = append(certificates, cert)
+
+		// www subdomain
+		wwwCert := h.buildSSLCertificate(domain.ID, 0, "www."+domain.Name, "www", domain.Name)
+		certificates = append(certificates, wwwCert)
+
+		// mail subdomain
+		mailCert := h.buildSSLCertificate(domain.ID, 0, "mail."+domain.Name, "mail", domain.Name)
+		certificates = append(certificates, mailCert)
+	}
+
+	// 3. Get all subdomains for this user
+	var subdomainQuery string
+	var subdomainArgs []interface{}
+
+	if role == models.RoleAdmin {
+		subdomainQuery = `SELECT s.id, s.domain_id, s.full_name, d.name 
+			FROM subdomains s 
+			JOIN domains d ON s.domain_id = d.id 
+			ORDER BY s.full_name`
+	} else {
+		subdomainQuery = `SELECT s.id, s.domain_id, s.full_name, d.name 
+			FROM subdomains s 
+			JOIN domains d ON s.domain_id = d.id 
+			WHERE s.user_id = ? 
+			ORDER BY s.full_name`
+		subdomainArgs = append(subdomainArgs, userID)
+	}
+
+	subdomainRows, err := h.db.Query(subdomainQuery, subdomainArgs...)
+	if err == nil {
+		defer subdomainRows.Close()
+
+		for subdomainRows.Next() {
+			var subdomainID, domainID int64
+			var fullName, parentDomain string
+			if err := subdomainRows.Scan(&subdomainID, &domainID, &fullName, &parentDomain); err != nil {
+				continue
+			}
+
+			// Subdomain
+			cert := h.buildSSLCertificate(domainID, subdomainID, fullName, "subdomain", parentDomain)
+			certificates = append(certificates, cert)
+
+			// www for subdomain (optional, but cPanel shows it)
+			wwwCert := h.buildSSLCertificate(domainID, subdomainID, "www."+fullName, "www", fullName)
+			certificates = append(certificates, wwwCert)
+		}
 	}
 
 	return c.JSON(models.APIResponse{
 		Success: true,
 		Data:    certificates,
 	})
+}
+
+// buildSSLCertificate creates an SSLCertificate with status info
+func (h *Handler) buildSSLCertificate(domainID, subdomainID int64, fqdn, domainType, parentDomain string) SSLCertificate {
+	cert := SSLCertificate{
+		DomainID:     domainID,
+		SubdomainID:  subdomainID,
+		Domain:       fqdn,
+		DomainType:   domainType,
+		ParentDomain: parentDomain,
+		AutoRenew:    true,
+	}
+
+	// Check if certificate exists for this FQDN
+	certInfo := h.getCertificateInfo(fqdn)
+	if certInfo != nil {
+		cert.Issuer = certInfo.Issuer
+		cert.ValidFrom = certInfo.ValidFrom
+		cert.ValidUntil = certInfo.ValidUntil
+		cert.CertPath = certInfo.CertPath
+		cert.KeyPath = certInfo.KeyPath
+
+		if time.Now().After(certInfo.ValidUntil) {
+			cert.Status = "expired"
+			cert.StatusDetail = "Sertifika süresi dolmuş"
+		} else if time.Now().Before(certInfo.ValidFrom) {
+			cert.Status = "pending"
+			cert.StatusDetail = "Sertifika henüz aktif değil"
+		} else {
+			cert.Status = "active"
+			daysLeft := int(time.Until(certInfo.ValidUntil).Hours() / 24)
+			cert.StatusDetail = fmt.Sprintf("Sertifika geçerli, %d gün kaldı", daysLeft)
+		}
+	} else {
+		// Check if covered by parent domain's wildcard or SAN certificate
+		if parentDomain != "" {
+			parentCertInfo := h.getCertificateInfo(parentDomain)
+			if parentCertInfo != nil && h.isCoveredByCert(fqdn, parentDomain) {
+				cert.Issuer = parentCertInfo.Issuer
+				cert.ValidFrom = parentCertInfo.ValidFrom
+				cert.ValidUntil = parentCertInfo.ValidUntil
+				cert.Status = "active"
+				cert.StatusDetail = fmt.Sprintf("Ana domain sertifikası ile korunuyor (%s)", parentDomain)
+			} else {
+				cert.Status = "none"
+				cert.StatusDetail = "SSL sertifikası yok"
+			}
+		} else {
+			cert.Status = "none"
+			cert.StatusDetail = "SSL sertifikası yok"
+		}
+	}
+
+	return cert
+}
+
+// isCoveredByCert checks if a subdomain is covered by parent's certificate
+func (h *Handler) isCoveredByCert(subdomain, parentDomain string) bool {
+	certPath := filepath.Join("/etc/letsencrypt/live", parentDomain, "fullchain.pem")
+
+	certPEM, err := os.ReadFile(certPath)
+	if err != nil {
+		return false
+	}
+
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		return false
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return false
+	}
+
+	// Check if subdomain matches any SAN
+	for _, san := range cert.DNSNames {
+		if san == subdomain {
+			return true
+		}
+		// Check wildcard
+		if strings.HasPrefix(san, "*.") {
+			wildcardDomain := san[2:]
+			if strings.HasSuffix(subdomain, "."+wildcardDomain) || subdomain == wildcardDomain {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // GetSSLCertificate returns SSL certificate details for a domain
