@@ -173,4 +173,12 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Post("/software/apache/module/disable", admin, h.DisableApacheModule)
 	protected.Post("/software/install", admin, h.InstallSoftware)
 	protected.Post("/software/uninstall", admin, h.UninstallSoftware)
+
+	// Server Settings (admin only)
+	protected.Get("/settings/server", admin, h.GetServerSettings)
+	protected.Put("/settings/server", admin, h.UpdateServerSettings)
+
+	// Server Features (all users - read only)
+	protected.Get("/server/features", h.GetServerFeatures)
+	protected.Get("/php/allowed-versions", h.GetAllowedPHPVersions)
 }

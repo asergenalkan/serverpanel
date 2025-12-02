@@ -308,6 +308,21 @@ func (db *DB) migrate() error {
 	db.Exec(`ALTER TABLE packages ADD COLUMN max_php_upload TEXT DEFAULT '64M'`)
 	db.Exec(`ALTER TABLE packages ADD COLUMN max_php_execution_time INTEGER DEFAULT 300`)
 
+	// Create server_settings table for admin configuration
+	db.Exec(`CREATE TABLE IF NOT EXISTS server_settings (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
+
+	// Insert default server settings
+	db.Exec(`INSERT OR IGNORE INTO server_settings (key, value) VALUES 
+		('multiphp_enabled', 'true'),
+		('default_php_version', '8.1'),
+		('allowed_php_versions', '7.4,8.0,8.1,8.2,8.3'),
+		('domain_based_php', 'true')
+	`)
+
 	// Create default admin user if not exists
 	if err := db.createDefaultAdmin(); err != nil {
 		log.Printf("Warning: Could not create default admin: %v", err)

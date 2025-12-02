@@ -19,6 +19,8 @@ import DailyLog from '@/pages/server/DailyLog';
 import TopProcesses from '@/pages/server/TopProcesses';
 import TaskQueue from '@/pages/server/TaskQueue';
 import SoftwareManager from '@/pages/SoftwareManager';
+import ServerSettings from '@/pages/ServerSettings';
+import ServerFeatures from '@/pages/ServerFeatures';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -224,6 +226,22 @@ function AppRoutes() {
           <AdminRoute>
             <SoftwareManager />
           </AdminRoute>
+        }
+      />
+      <Route
+        path="/settings/server"
+        element={
+          <AdminRoute>
+            <ServerSettings />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/server/features"
+        element={
+          <ProtectedRoute>
+            <ServerFeatures />
+          </ProtectedRoute>
         }
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

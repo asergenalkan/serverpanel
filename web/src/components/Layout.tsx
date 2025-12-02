@@ -46,6 +46,7 @@ const userMenuItems = [
   { icon: Code, label: 'PHP Ayarları', href: '/php' },
   { icon: Globe2, label: 'DNS Zone Editor', href: '/dns' },
   { icon: Mail, label: 'E-posta', href: '/email' },
+  { icon: Server, label: 'Sunucu Özellikleri', href: '/server/features' },
   { icon: HardDrive, label: 'Backup', href: '/backup', disabled: true },
   { icon: Clock, label: 'Cron Jobs', href: '/cron', disabled: true },
 ];
@@ -63,7 +64,7 @@ const adminMenuItems = [
   { icon: Globe2, label: 'DNS Zone Editor', href: '/dns' },
   { icon: Mail, label: 'E-posta', href: '/email' },
   { icon: Package, label: 'Paketler', href: '/packages' },
-  { icon: Settings, label: 'Ayarlar', href: '/settings', disabled: true },
+  { icon: Settings, label: 'Sunucu Ayarları', href: '/settings/server' },
 ];
 
 // Server status submenu items (admin only)
@@ -125,23 +126,15 @@ export default function Layout({ children }: LayoutProps) {
               {adminMenuItems.map((item) => (
                 <Link
                   key={item.href}
-                  to={item.disabled ? '#' : item.href}
+                  to={item.href}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     location.pathname === item.href
                       ? 'bg-primary/10 text-primary'
-                      : item.disabled
-                      ? 'text-muted-foreground/50 cursor-not-allowed'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
-                  onClick={(e) => item.disabled && e.preventDefault()}
                 >
                   <item.icon className="w-5 h-5" />
                   {item.label}
-                  {item.disabled && (
-                    <span className="ml-auto text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
-                      Yakında
-                    </span>
-                  )}
                 </Link>
               ))}
 
