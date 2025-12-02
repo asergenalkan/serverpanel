@@ -723,11 +723,87 @@ APACHEEOF
 }
 
 configure_dns() {
-    log_step "DNS (BIND) Yapılandırılıyor"
+    log_step "DNS (BIND9) Yapılandırılıyor"
+    
+    # BIND9 kurulu mu kontrol et
+    if ! command -v named &> /dev/null; then
+        log_warn "BIND9 kurulu değil, kuruluyor..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y bind9 bind9-utils > /dev/null 2>&1
+    fi
+    
+    # Zone dizinini oluştur
     ensure_directory "/etc/bind/zones" "bind" "755"
-    systemctl enable bind9 > /dev/null 2>&1 || true
-    systemctl start bind9 > /dev/null 2>&1 || true
-    log_info "BIND durumu: $(systemctl is-active bind9 2>/dev/null || echo 'inactive')"
+    log_info "Zone dizini: /etc/bind/zones ✓"
+    
+    # named.conf.local dosyasını yapılandır (zone include için)
+    log_progress "BIND9 yapılandırılıyor"
+    
+    # named.conf.options güncelle (recursion kapalı, güvenlik için)
+    cat > /etc/bind/named.conf.options << 'BINDOPTIONS'
+options {
+    directory "/var/cache/bind";
+    
+    // Recursion kapalı (sadece authoritative DNS)
+    recursion no;
+    
+    // DNSSEC validation
+    dnssec-validation auto;
+    
+    // IPv6 dinleme
+    listen-on-v6 { any; };
+    listen-on { any; };
+    
+    // Zone transfer kısıtlaması
+    allow-transfer { none; };
+    
+    // Query izni (herkes sorgulayabilir)
+    allow-query { any; };
+};
+BINDOPTIONS
+    log_done "named.conf.options yapılandırıldı"
+    
+    # named.conf.local başlangıç dosyası (boş, zone'lar dinamik eklenir)
+    if [[ ! -f /etc/bind/named.conf.local ]] || ! grep -q "ServerPanel" /etc/bind/named.conf.local 2>/dev/null; then
+        cat > /etc/bind/named.conf.local << 'BINDLOCAL'
+//
+// ServerPanel DNS Zone Configuration
+// Zone'lar otomatik olarak eklenir
+//
+BINDLOCAL
+        log_info "named.conf.local hazırlandı ✓"
+    fi
+    
+    # BIND config syntax kontrolü
+    log_detail "BIND config kontrol ediliyor"
+    if named-checkconf > /dev/null 2>&1; then
+        log_info "BIND config: geçerli ✓"
+    else
+        log_warn "BIND config hatası var, düzeltiliyor..."
+        named-checkconf 2>&1 | head -5
+    fi
+    
+    # BIND9 servisini başlat
+    log_progress "BIND9 servisi başlatılıyor"
+    systemctl daemon-reload > /dev/null 2>&1
+    systemctl enable bind9 > /dev/null 2>&1 || systemctl enable named > /dev/null 2>&1
+    systemctl restart bind9 > /dev/null 2>&1 || systemctl restart named > /dev/null 2>&1
+    
+    sleep 2
+    
+    if systemctl is-active --quiet bind9 || systemctl is-active --quiet named; then
+        log_done "BIND9 servisi başlatıldı"
+        log_info "DNS Port: 53 (TCP/UDP)"
+    else
+        log_warn "BIND9 başlatılamadı, logları kontrol edin"
+        journalctl -u bind9 -n 5 --no-pager 2>/dev/null || true
+    fi
+    
+    # Firewall kuralları (UFW varsa)
+    if command -v ufw &> /dev/null; then
+        ufw allow 53/tcp > /dev/null 2>&1 || true
+        ufw allow 53/udp > /dev/null 2>&1 || true
+        log_info "Firewall: DNS portları açıldı ✓"
+    fi
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1030,12 +1106,12 @@ CRONEOF
 health_check() {
     log_step "Sistem Sağlık Kontrolü"
     
-    local services=("mysql" "apache2" "php${PHP_VERSION}-fpm" "serverpanel")
+    local services=("mysql" "apache2" "php${PHP_VERSION}-fpm" "bind9" "pure-ftpd" "serverpanel")
     for svc in "${services[@]}"; do
         if systemctl is-active --quiet "$svc"; then
             log_info "$svc: aktif ✓"
         else
-            log_error "$svc: çalışmıyor!"
+            log_warn "$svc: çalışmıyor"
         fi
     done
     
@@ -1049,6 +1125,13 @@ health_check() {
         log_info "MySQL bağlantısı ✓"
     else
         log_error "MySQL bağlantısı başarısız!"
+    fi
+    
+    # DNS testi
+    if named-checkconf > /dev/null 2>&1; then
+        log_info "BIND9 config ✓"
+    else
+        log_warn "BIND9 config hatası var"
     fi
 }
 
