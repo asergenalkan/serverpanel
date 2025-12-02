@@ -144,6 +144,29 @@ func (db *DB) migrate() error {
 			FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE
 		)`,
 
+		// FTP accounts table
+		`CREATE TABLE IF NOT EXISTS ftp_accounts (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			username TEXT UNIQUE NOT NULL,
+			password TEXT NOT NULL,
+			home_directory TEXT NOT NULL,
+			quota_mb INTEGER DEFAULT 0,
+			upload_bandwidth INTEGER DEFAULT 0,
+			download_bandwidth INTEGER DEFAULT 0,
+			active INTEGER DEFAULT 1,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+
+		// FTP server settings (admin config)
+		`CREATE TABLE IF NOT EXISTS ftp_settings (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			setting_key TEXT UNIQUE NOT NULL,
+			setting_value TEXT NOT NULL,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+
 		// Activity logs
 		`CREATE TABLE IF NOT EXISTS activity_logs (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,

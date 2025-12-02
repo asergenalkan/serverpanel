@@ -236,11 +236,21 @@ install_packages() {
     DEBIAN_FRONTEND=noninteractive apt-get install -y bind9 bind9-utils certbot python3-certbot-apache > /dev/null 2>&1
     log_done "Ek servisler kuruldu"
     
+    # Pure-FTPd kurulumu
+    log_progress "Pure-FTPd kuruluyor"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y pure-ftpd pure-ftpd-common > /dev/null 2>&1
+    if command -v pure-ftpd &> /dev/null; then
+        log_done "Pure-FTPd kuruldu"
+    else
+        log_warn "Pure-FTPd kurulamadı, manuel kurulum gerekebilir"
+    fi
+    
     # Kurulum özeti
     echo ""
     log_info "Apache: $(apache2 -v 2>/dev/null | head -1 | awk '{print $3}')"
     log_info "PHP: $(php -v 2>/dev/null | head -1 | awk '{print $2}')"
     log_info "MySQL: $(mysql --version 2>/dev/null | awk '{print $3}')"
+    log_info "Pure-FTPd: $(pure-ftpd --help 2>&1 | head -1 || echo 'kurulu değil')"
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -511,6 +521,83 @@ POOLEOF
         log_info "PHP CLI çalışıyor ✓"
     else
         log_warn "PHP CLI testi başarısız"
+    fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PURE-FTPD YAPILANDIRMASI
+# ═══════════════════════════════════════════════════════════════════════════════
+
+configure_pureftpd() {
+    log_step "Pure-FTPd Yapılandırılıyor"
+    
+    # Pure-FTPd kurulu mu kontrol et
+    if ! command -v pure-ftpd &> /dev/null; then
+        log_warn "Pure-FTPd kurulu değil, kuruluyor..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y pure-ftpd pure-ftpd-common > /dev/null 2>&1
+    fi
+    
+    if ! command -v pure-ftpd &> /dev/null; then
+        log_warn "Pure-FTPd kurulamadı, FTP desteği olmadan devam ediliyor"
+        return 0
+    fi
+    
+    local conf_dir="/etc/pure-ftpd/conf"
+    ensure_directory "$conf_dir" "root" "755"
+    
+    # Virtual users için PureDB kullan
+    log_progress "Pure-FTPd virtual users yapılandırılıyor"
+    
+    # PureDB auth yöntemini etkinleştir
+    ln -sf /etc/pure-ftpd/conf/PureDB /etc/pure-ftpd/auth/50pure 2>/dev/null || true
+    echo "/etc/pure-ftpd/pureftpd.pdb" > "$conf_dir/PureDB"
+    
+    # Temel ayarlar
+    echo "yes" > "$conf_dir/ChrootEveryone"      # Kullanıcıları kendi dizinlerine kilitle
+    echo "yes" > "$conf_dir/NoAnonymous"         # Anonim girişi kapat
+    echo "yes" > "$conf_dir/CreateHomeDir"       # Home dizini yoksa oluştur
+    echo "15" > "$conf_dir/MaxIdleTime"          # 15 dakika idle timeout
+    echo "50" > "$conf_dir/MaxClientsNumber"     # Maksimum 50 bağlantı
+    echo "8" > "$conf_dir/MaxClientsPerIP"       # IP başına maksimum 8 bağlantı
+    echo "30000 31000" > "$conf_dir/PassivePortRange"  # Passive port aralığı
+    echo "1" > "$conf_dir/TLS"                   # TLS opsiyonel (0=kapalı, 1=opsiyonel, 2=zorunlu)
+    echo "yes" > "$conf_dir/DontResolve"         # DNS çözümlemesi yapma (hızlandırır)
+    echo "yes" > "$conf_dir/VerboseLog"          # Detaylı log
+    
+    # Boş PureDB oluştur (eğer yoksa)
+    if [[ ! -f /etc/pure-ftpd/pureftpd.passwd ]]; then
+        touch /etc/pure-ftpd/pureftpd.passwd
+        pure-pw mkdb > /dev/null 2>&1 || true
+    fi
+    
+    log_done "Pure-FTPd ayarları yapılandırıldı"
+    
+    # TLS sertifikası oluştur (self-signed)
+    local ssl_dir="/etc/ssl/private"
+    if [[ ! -f "$ssl_dir/pure-ftpd.pem" ]]; then
+        log_progress "FTP SSL sertifikası oluşturuluyor"
+        openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+            -keyout "$ssl_dir/pure-ftpd.pem" \
+            -out "$ssl_dir/pure-ftpd.pem" \
+            -subj "/C=TR/ST=Istanbul/L=Istanbul/O=ServerPanel/CN=$(hostname)" \
+            > /dev/null 2>&1
+        chmod 600 "$ssl_dir/pure-ftpd.pem"
+        log_done "FTP SSL sertifikası oluşturuldu"
+    fi
+    
+    # Pure-FTPd servisini başlat
+    log_progress "Pure-FTPd servisi başlatılıyor"
+    systemctl daemon-reload > /dev/null 2>&1
+    systemctl enable pure-ftpd > /dev/null 2>&1
+    systemctl restart pure-ftpd > /dev/null 2>&1
+    
+    sleep 2
+    if systemctl is-active --quiet pure-ftpd; then
+        log_done "Pure-FTPd servisi başlatıldı"
+        log_info "FTP Port: 21"
+        log_info "Passive Ports: 30000-31000"
+    else
+        log_warn "Pure-FTPd başlatılamadı, logları kontrol edin"
     fi
 }
 
@@ -983,6 +1070,7 @@ main() {
     install_packages
     configure_mysql
     configure_php
+    configure_pureftpd
     configure_apache
     configure_dns
     install_phpmyadmin

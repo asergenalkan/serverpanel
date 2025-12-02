@@ -92,6 +92,19 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Put("/php/domains/:id/version", h.UpdateDomainPHPVersion)
 	protected.Put("/php/domains/:id/settings", h.UpdateDomainPHPSettings)
 
+	// FTP Management (all authenticated users)
+	protected.Get("/ftp/accounts", h.ListFTPAccounts)
+	protected.Post("/ftp/accounts", h.CreateFTPAccount)
+	protected.Put("/ftp/accounts/:id", h.UpdateFTPAccount)
+	protected.Delete("/ftp/accounts/:id", h.DeleteFTPAccount)
+	protected.Post("/ftp/accounts/:id/toggle", h.ToggleFTPAccount)
+
+	// FTP Server Settings (admin only)
+	protected.Get("/ftp/settings", admin, h.GetFTPSettings)
+	protected.Put("/ftp/settings", admin, h.UpdateFTPSettings)
+	protected.Get("/ftp/status", admin, h.GetFTPServerStatus)
+	protected.Post("/ftp/restart", admin, h.RestartFTPServer)
+
 	// File Manager (all authenticated users)
 	protected.Get("/files/list", h.ListFiles)
 	protected.Get("/files/read", h.ReadFile)

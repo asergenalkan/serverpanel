@@ -173,4 +173,33 @@ export const filesAPI = {
   info: (path: string) => api.get('/files/info', { params: { path } }),
 };
 
+// FTP Management
+export const ftpAPI = {
+  // FTP Accounts
+  list: () => api.get('/ftp/accounts'),
+  create: (data: { username: string; password: string; home_directory?: string; quota_mb?: number }) => 
+    api.post('/ftp/accounts', data),
+  update: (id: number, data: { password?: string; home_directory?: string; quota_mb?: number; active?: boolean }) => 
+    api.put(`/ftp/accounts/${id}`, data),
+  delete: (id: number) => api.delete(`/ftp/accounts/${id}`),
+  toggle: (id: number) => api.post(`/ftp/accounts/${id}/toggle`),
+  
+  // FTP Server Settings (admin only)
+  getSettings: () => api.get('/ftp/settings'),
+  updateSettings: (settings: {
+    tls_encryption: string;
+    tls_cipher_suite: string;
+    allow_anonymous_logins: boolean;
+    allow_anonymous_uploads: boolean;
+    max_idle_time: number;
+    max_connections: number;
+    max_connections_per_ip: number;
+    allow_root_login: boolean;
+    passive_port_min: number;
+    passive_port_max: number;
+  }) => api.put('/ftp/settings', settings),
+  getStatus: () => api.get('/ftp/status'),
+  restart: () => api.post('/ftp/restart'),
+};
+
 export default api;

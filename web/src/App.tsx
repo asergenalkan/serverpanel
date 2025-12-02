@@ -9,6 +9,7 @@ import FileManager from '@/pages/FileManager';
 import Databases from '@/pages/Databases';
 import SSL from '@/pages/SSL';
 import PHPSettings from '@/pages/PHPSettings';
+import FTPAccounts from '@/pages/FTPAccounts';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -132,6 +133,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <PHPSettings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ftp"
+        element={
+          <ProtectedRoute>
+            <FTPAccounts />
           </ProtectedRoute>
         }
       />
