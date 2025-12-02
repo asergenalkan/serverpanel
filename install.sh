@@ -785,6 +785,18 @@ PMACONFIG
     chmod 644 /usr/share/phpmyadmin/config.inc.php
     log_done "phpMyAdmin config oluşturuldu"
     
+    # /etc/phpmyadmin/config.inc.php oluştur (bazı kurulumlar bunu okur)
+    log_progress "/etc/phpmyadmin config oluşturuluyor"
+    mkdir -p /etc/phpmyadmin/conf.d
+    cat > /etc/phpmyadmin/config.inc.php << ETCPMACONFIG
+<?php
+\$cfg['blowfish_secret'] = '${BLOWFISH}';
+\$cfg['PmaNoRelation_DisableWarning'] = true;
+ETCPMACONFIG
+    chown root:root /etc/phpmyadmin/config.inc.php
+    chmod 644 /etc/phpmyadmin/config.inc.php
+    log_done "/etc/phpmyadmin config oluşturuldu"
+    
     # Signon PHP script'i oluştur (Go backend'den credential çeker)
     log_progress "Signon script oluşturuluyor"
     cat > /var/www/html/pma-signon.php << 'SCRIPTEOF'
