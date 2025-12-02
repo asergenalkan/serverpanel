@@ -7,6 +7,7 @@ import (
 	"github.com/asergenalkan/serverpanel/internal/api"
 	"github.com/asergenalkan/serverpanel/internal/config"
 	"github.com/asergenalkan/serverpanel/internal/database"
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -46,6 +47,15 @@ func main() {
 	// API routes
 	apiRouter := app.Group("/api/v1")
 	api.SetupRoutes(apiRouter, db)
+
+	// WebSocket route (must be before static files and SPA fallback)
+	app.Use("/api/v1/ws", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+	app.Get("/api/v1/ws/tasks/:task_id", websocket.New(api.HandleTaskWebSocketDirect(db, cfg)))
 
 	// Serve static files (frontend)
 	app.Static("/", "./public")

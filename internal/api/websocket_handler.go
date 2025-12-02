@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/asergenalkan/serverpanel/internal/config"
+	"github.com/asergenalkan/serverpanel/internal/database"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -43,6 +45,12 @@ func WebSocketUpgrade() fiber.Handler {
 		}
 		return fiber.ErrUpgradeRequired
 	}
+}
+
+// HandleTaskWebSocketDirect returns a WebSocket handler for direct use in main.go
+func HandleTaskWebSocketDirect(db *database.DB, cfg *config.Config) func(*websocket.Conn) {
+	h := &Handler{db: db, cfg: cfg}
+	return h.HandleTaskWebSocket
 }
 
 // validateToken validates JWT token and returns claims

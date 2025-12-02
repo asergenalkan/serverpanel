@@ -5,7 +5,6 @@ import (
 	"github.com/asergenalkan/serverpanel/internal/database"
 	"github.com/asergenalkan/serverpanel/internal/middleware"
 	"github.com/asergenalkan/serverpanel/internal/models"
-	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -187,7 +186,5 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Post("/tasks/start", admin, h.StartInstallTask)
 	protected.Get("/tasks/:task_id", admin, h.GetTaskStatus)
 
-	// WebSocket for task logs (admin only)
-	router.Use("/ws", WebSocketUpgrade())
-	router.Get("/ws/tasks/:task_id", websocket.New(h.HandleTaskWebSocket))
+	// Note: WebSocket route is defined in main.go to avoid SPA fallback conflict
 }
