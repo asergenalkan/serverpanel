@@ -131,7 +131,7 @@ export default function Domains() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Domainler</h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Website domainlerinizi yönetin
             </p>
           </div>

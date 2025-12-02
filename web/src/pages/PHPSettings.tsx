@@ -173,10 +173,10 @@ export default function PHPSettingsPage() {
 
         {/* Message */}
         {message && (
-          <div className={`p-4 rounded-lg flex items-center gap-2 ${
+          <div className={`p-4 rounded-lg flex items-center gap-2 border text-white ${
             message.type === 'success' 
-              ? 'bg-green-50 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
-              : 'bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+              ? 'bg-emerald-600 border-emerald-700 dark:bg-emerald-600 dark:border-emerald-700' 
+              : 'bg-rose-600 border-rose-700 dark:bg-rose-600 dark:border-rose-700'
           }`}>
             {message.type === 'success' ? (
               <CheckCircle className="w-5 h-5" />
@@ -246,8 +246,8 @@ export default function PHPSettingsPage() {
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-muted-foreground bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                    <Info className="w-4 h-4 mt-0.5 text-blue-600" />
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground bg-primary/10 p-3 rounded-lg">
+                    <Info className="w-4 h-4 mt-0.5 text-primary" />
                     <span>
                       PHP versiyonunu değiştirmek Apache ve PHP-FPM yapılandırmasını günceller.
                       Değişiklik birkaç saniye sürebilir.
@@ -390,8 +390,8 @@ export default function PHPSettingsPage() {
                         onClick={() => setSettings({ ...settings, display_errors: false })}
                         className={`px-4 py-2 rounded-lg border ${
                           !settings.display_errors
-                            ? 'bg-green-100 border-green-500 text-green-700 dark:bg-green-900/30'
-                            : 'border-gray-300 dark:border-gray-600'
+                            ? 'bg-primary/10 border-primary text-primary'
+                            : 'border-border'
                         }`}
                       >
                         Kapalı (Önerilen)

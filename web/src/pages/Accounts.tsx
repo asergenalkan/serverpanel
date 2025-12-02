@@ -255,7 +255,7 @@ export default function Accounts() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Hosting Hesapları</h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Müşteri hesaplarını oluşturun ve yönetin
             </p>
           </div>
@@ -269,13 +269,13 @@ export default function Accounts() {
         <Card className="bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/5 dark:border-blue-500/10">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-primary mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-blue-900 dark:text-blue-300">Hesap Oluşturma Hakkında</p>
-                <p className="text-blue-700 dark:text-blue-400 mt-1">
+                <p className="font-medium text-foreground">Hesap Oluşturma Hakkında</p>
+                <p className="text-muted-foreground mt-1">
                   Hesap oluşturduğunuzda otomatik olarak:
                 </p>
-                <ul className="text-blue-700 dark:text-blue-400 mt-1 list-disc list-inside">
+                <ul className="text-muted-foreground mt-1 list-disc list-inside">
                   <li>Linux kullanıcısı oluşturulur</li>
                   <li>Home dizini ve public_html klasörü oluşturulur</li>
                   <li>Apache virtual host konfigürasyonu yapılır</li>

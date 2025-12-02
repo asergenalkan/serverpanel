@@ -338,14 +338,14 @@ export default function FTPAccountsPage() {
 
         {/* Message */}
         {message && (
-          <div className={`p-4 rounded-lg flex items-center gap-2 ${
+          <div className={`p-4 rounded-lg flex items-center gap-2 border text-white ${
             message.type === 'success' 
-              ? 'bg-green-50 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
-              : 'bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+              ? 'bg-emerald-600 border-emerald-700 dark:bg-emerald-600 dark:border-emerald-700' 
+              : 'bg-rose-600 border-rose-700 dark:bg-rose-600 dark:border-rose-700'
           }`}>
             {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
             {message.text}
-            <button onClick={() => setMessage(null)} className="ml-auto">×</button>
+            <button onClick={() => setMessage(null)} className="ml-auto hover:opacity-80">×</button>
           </div>
         )}
 
@@ -438,10 +438,10 @@ export default function FTPAccountsPage() {
                           </td>
                         )}
                         <td className="py-3 px-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border text-white ${
                             account.active 
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700' 
-                              : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800'
+                              ? 'bg-emerald-600 border-emerald-700 dark:bg-emerald-600 dark:border-emerald-700' 
+                              : 'bg-rose-600 border-rose-700 dark:bg-rose-600 dark:border-rose-700'
                           }`}>
                             {account.active ? 'Aktif' : 'Pasif'}
                           </span>

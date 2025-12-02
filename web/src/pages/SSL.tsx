@@ -150,13 +150,13 @@ export default function SSL() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700';
+        return 'bg-emerald-100 text-emerald-900 border border-emerald-400 font-semibold dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700';
       case 'expired':
-        return 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800';
+        return 'bg-rose-100 text-rose-900 border border-rose-400 font-semibold dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800';
       case 'pending':
-        return 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800';
+        return 'bg-amber-100 text-amber-900 border border-amber-400 font-semibold dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800';
       default:
-        return 'bg-gray-50 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
+        return 'bg-gray-100 text-gray-900 border border-gray-400 font-semibold dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
     }
   };
 
@@ -183,10 +183,10 @@ export default function SSL() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-2xl font-bold text-foreground">
               SSL Sertifikaları
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
+            <p className="text-muted-foreground text-sm">
               Let's Encrypt ile ücretsiz SSL sertifikası yönetimi
             </p>
           </div>
@@ -205,7 +205,7 @@ export default function SSL() {
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-red-800 dark:text-red-200 font-medium">Hata</p>
+              <p className="text-red-700 dark:text-red-200 font-medium">Hata</p>
               <p className="text-red-600 dark:text-red-300 text-sm">{error}</p>
             </div>
             <button
@@ -221,7 +221,7 @@ export default function SSL() {
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-start gap-3">
             <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-green-800 dark:text-green-200 font-medium">Başarılı</p>
+              <p className="text-green-700 dark:text-green-200 font-medium">Başarılı</p>
               <p className="text-green-600 dark:text-green-300 text-sm">{success}</p>
             </div>
             <button
@@ -237,14 +237,14 @@ export default function SSL() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-start gap-4">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <Shield className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <div className="p-3 bg-primary/10 rounded-lg">
+                <Shield className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="font-medium text-gray-900 dark:text-white">
+                <h3 className="font-medium text-foreground">
                   Let's Encrypt SSL
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   Tüm domainleriniz için ücretsiz SSL sertifikası alabilirsiniz. 
                   Sertifikalar 90 gün geçerlidir ve otomatik olarak yenilenir.
                 </p>
@@ -261,11 +261,11 @@ export default function SSL() {
         ) : certificates.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
-              <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              <Globe className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">
                 Domain Bulunamadı
               </h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-muted-foreground">
                 SSL sertifikası almak için önce bir domain eklemeniz gerekiyor.
               </p>
             </CardContent>
@@ -279,11 +279,11 @@ export default function SSL() {
               return (
                 <Card key={cert.domain_id} className="overflow-hidden">
                   <CardContent className="p-0">
-                    <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between p-4 border-b border-border">
                       <div className="flex items-center gap-4">
                         {getStatusIcon(cert.status)}
                         <div>
-                          <h3 className="font-medium text-gray-900 dark:text-white">
+                          <h3 className="font-medium text-foreground">
                             {cert.domain}
                           </h3>
                           <div className="flex items-center gap-2 mt-1">
@@ -291,7 +291,7 @@ export default function SSL() {
                               {getStatusText(cert.status)}
                             </span>
                             {cert.issuer && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                              <span className="text-xs text-muted-foreground">
                                 {cert.issuer}
                               </span>
                             )}

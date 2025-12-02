@@ -260,12 +260,12 @@ export default function Databases() {
 
   return (
     <Layout>
-      <div className="space-y-6 p-6">
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">MySQL Veritabanları</h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               {user?.role === 'admin' ? 'Tüm veritabanlarını yönetin' : 'Veritabanlarınızı yönetin'}
             </p>
           </div>
@@ -475,14 +475,14 @@ export default function Databases() {
         <Card className="bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/5 dark:border-blue-500/10">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
-              <Server className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <Server className="w-5 h-5 text-primary mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-blue-900 dark:text-blue-300">phpMyAdmin Erişimi</p>
-                <p className="text-blue-700 dark:text-blue-400 mt-1">
+                <p className="font-medium text-foreground">phpMyAdmin Erişimi</p>
+                <p className="text-muted-foreground mt-1">
                   Veritabanınızı yönetmek için phpMyAdmin'i kullanabilirsiniz. "phpMyAdmin'de Aç" butonuna tıkladığınızda
                   giriş bilgileri panoya kopyalanacaktır.
                 </p>
-                <p className="text-blue-600 dark:text-blue-400 mt-2 font-mono text-xs">
+                <p className="text-muted-foreground mt-2 font-mono text-xs">
                   Host: localhost | Port: 3306
                 </p>
               </div>

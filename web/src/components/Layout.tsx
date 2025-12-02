@@ -100,7 +100,7 @@ export default function Layout({ children }: LayoutProps) {
                   to={item.disabled ? '#' : item.href}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     location.pathname === item.href
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                      ? 'bg-primary/10 text-primary'
                       : item.disabled
                       ? 'text-muted-foreground/50 cursor-not-allowed'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -128,7 +128,7 @@ export default function Layout({ children }: LayoutProps) {
                   to={item.disabled ? '#' : item.href}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     location.pathname === item.href
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                      ? 'bg-primary/10 text-primary'
                       : item.disabled
                       ? 'text-muted-foreground/50 cursor-not-allowed'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
