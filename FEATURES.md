@@ -12,7 +12,7 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 | Dashboard | ✅ | ✅ | %80 |
 | Kullanıcı Yönetimi | ✅ | ✅ Çalışıyor | %70 |
 | Domain Yönetimi | ✅ | ✅ Çalışıyor | %60 |
-| DNS Yönetimi | ✅ | ✅ BIND9 | %50 |
+| DNS Yönetimi | ✅ | ✅ BIND9 Zone Editor | %85 |
 | E-posta Yönetimi | ✅ | ⚠️ API var | %10 |
 | Veritabanı Yönetimi | ✅ | ✅ phpMyAdmin SSO | %80 |
 | Dosya Yönetimi | ✅ | ✅ Tam fonksiyonel | %90 |
@@ -135,16 +135,25 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 
 ## 🔤 4. DNS YÖNETİMİ
 
-### Mevcut ❌
-Henüz yok
-
-### Eklenecek Özellikler
-- [ ] **Zone Editor**
+### Mevcut ✅
+- [x] **Zone Editor** (BIND9)
   - A, AAAA, CNAME, MX, TXT, NS, SRV, CAA kayıtları
-  - TTL yönetimi
-  - Zone dosyası import/export
+  - TTL yönetimi (preset seçenekleri)
+  - Kayıt ekleme/düzenleme/silme
+  - Zone sıfırlama (varsayılana döndürme)
+  - Kullanıcı izolasyonu (sadece kendi domainleri)
+  - Admin tüm zone'ları yönetebilir
+- [x] **Otomatik Zone Oluşturma**
+  - Hesap oluşturulduğunda otomatik DNS zone
+  - Varsayılan A, MX, TXT (SPF) kayıtları
+- [x] **cPanel Benzeri UI**
+  - Kayıt tipi filtreleme
+  - Renkli tip badge'leri
+  - Domain seçici sidebar
+
+### Eksik Özellikler
 - [ ] **DNS Şablonları**
-  - Varsayılan kayıt şablonları
+  - Özel kayıt şablonları
   - Hızlı kurulum
 - [ ] **DNS Cluster**
   - Birden fazla DNS sunucu desteği
@@ -626,7 +635,7 @@ Bir hosting müşterisinin temel ihtiyaçlarına göre sıralandı:
 | 7 | Webmail (Roundcube) | Tarayıcıdan mail okuma | ⏳ Bekliyor |
 | 8 | FTP Hesapları | Büyük dosya yükleme | ✅ Tamam |
 | 9 | Backup & Restore | Veri kaybını önleme | ⏳ Bekliyor |
-| 10 | DNS Zone Editor | Mail/subdomain ayarları | ⏳ Bekliyor |
+| 10 | DNS Zone Editor | Mail/subdomain ayarları | ✅ Tamam |
 
 ### 🎯 Faz 3 - Profesyonel Hosting
 > Gelişmiş müşteriler için
@@ -654,10 +663,10 @@ Bir hosting müşterisinin temel ihtiyaçlarına göre sıralandı:
 
 ## 📈 İlerleme Durumu
 
-- **Tamamlanan**: 30+ özellik
+- **Tamamlanan**: 35+ özellik
 - **Devam Eden**: 2 özellik
-- **Bekleyen**: 125+ özellik
-- **Toplam İlerleme**: ~%30
+- **Bekleyen**: 120+ özellik
+- **Toplam İlerleme**: ~%35
 
 ### ✅ Son Tamamlanan Özellikler (2 Aralık 2025)
 - Tek komutla kurulum scripti (install.sh)
@@ -698,6 +707,13 @@ Bir hosting müşterisinin temel ihtiyaçlarına göre sıralandı:
   - Tüm sayfalarda tutarlı başlık boyutları
   - Badge ve alert renkleri düzeltildi
   - phpMyAdmin blowfish_secret otomatik yapılandırma
+- **DNS Zone Editor (BIND9)**
+  - A, AAAA, CNAME, MX, TXT, NS, SRV, CAA kayıtları
+  - TTL yönetimi (preset seçenekleri)
+  - Kayıt ekleme/düzenleme/silme
+  - Zone sıfırlama (varsayılana döndürme)
+  - Kullanıcı izolasyonu
+  - cPanel benzeri UI
 
 ---
 

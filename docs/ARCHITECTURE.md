@@ -64,6 +64,14 @@ Admin giriş yapar
 │   ├── Kota yönetimi (sınırsız seçeneği)
 │   ├── Şifre gücü göstergesi
 │   └── Admin sunucu ayarları (TLS, bağlantı limitleri)
+│
+├── DNS Zone Editor (BIND9) → ✅ Tam fonksiyonel!
+│   ├── A, AAAA, CNAME, MX, TXT, NS, SRV, CAA kayıtları
+│   ├── TTL yönetimi (preset seçenekleri)
+│   ├── Kayıt ekleme/düzenleme/silme
+│   ├── Zone sıfırlama (varsayılana döndürme)
+│   ├── Kullanıcı izolasyonu
+│   └── cPanel benzeri UI
 ```
 
 ### 📋 Hedef (Devam Eden)
