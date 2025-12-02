@@ -136,6 +136,10 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Delete("/email/autoresponders/:id", h.DeleteAutoresponder)
 	protected.Get("/email/webmail", h.GetWebmailURL)
 	protected.Get("/email/stats", h.GetEmailStats)
+	protected.Get("/email/settings/:domain_id", h.GetEmailSettings)
+	protected.Put("/email/settings/:domain_id", h.UpdateEmailSettings)
+	protected.Post("/email/dkim/:domain_id", h.GenerateDKIM)
+	protected.Get("/email/dns-records/:domain_id", h.GetDNSRecordsForEmail)
 
 	// File Manager (all authenticated users)
 	protected.Get("/files/list", h.ListFiles)

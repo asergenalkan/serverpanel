@@ -630,13 +630,14 @@ configure_pureftpd() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 configure_mail_server() {
-    log_step "Mail Server Yapılandırılıyor (Postfix + Dovecot)"
+    log_step "Mail Server Yapılandırılıyor (Postfix + Dovecot + OpenDKIM)"
     
-    # 1. Paketleri kur
+    # 1. Paketleri kur (DKIM, SPF kontrolü dahil)
     log_progress "Mail server paketleri kuruluyor"
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        postfix postfix-mysql \
+        postfix postfix-mysql postfix-policyd-spf-python \
         dovecot-core dovecot-imapd dovecot-pop3d dovecot-lmtpd dovecot-sieve \
+        opendkim opendkim-tools \
         > /dev/null 2>&1
     
     if ! command -v postfix &> /dev/null; then
@@ -654,9 +655,50 @@ configure_mail_server() {
     ensure_directory "/var/mail/vhosts" "vmail" "770"
     log_done "vmail kullanıcısı hazır"
     
-    # 3. Postfix temel yapılandırma
+    # 3. OpenDKIM yapılandırma
+    log_progress "OpenDKIM yapılandırılıyor"
+    mkdir -p /etc/opendkim/keys
+    chown -R opendkim:opendkim /etc/opendkim
+    chmod 700 /etc/opendkim/keys
+    
+    cat > /etc/opendkim.conf << 'DKIMCONF'
+AutoRestart             Yes
+AutoRestartRate         10/1h
+Syslog                  yes
+SyslogSuccess           Yes
+LogWhy                  Yes
+Canonicalization        relaxed/simple
+ExternalIgnoreList      refile:/etc/opendkim/TrustedHosts
+InternalHosts           refile:/etc/opendkim/TrustedHosts
+KeyTable                refile:/etc/opendkim/KeyTable
+SigningTable            refile:/etc/opendkim/SigningTable
+Mode                    sv
+PidFile                 /var/run/opendkim/opendkim.pid
+SignatureAlgorithm      rsa-sha256
+UserID                  opendkim:opendkim
+Socket                  inet:8891@localhost
+DKIMCONF
+
+    # Trusted hosts
+    cat > /etc/opendkim/TrustedHosts << 'TRUSTEDHOSTS'
+127.0.0.1
+localhost
+TRUSTEDHOSTS
+
+    # Boş KeyTable ve SigningTable
+    touch /etc/opendkim/KeyTable
+    touch /etc/opendkim/SigningTable
+    chown opendkim:opendkim /etc/opendkim/KeyTable /etc/opendkim/SigningTable
+    
+    # OpenDKIM servisini başlat
+    systemctl enable opendkim > /dev/null 2>&1
+    systemctl restart opendkim > /dev/null 2>&1
+    log_done "OpenDKIM yapılandırıldı"
+    
+    # 4. Postfix temel yapılandırma
     log_progress "Postfix yapılandırılıyor"
     local hostname=$(hostname -f)
+    local server_ip=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
     
     postconf -e "myhostname = $hostname"
     postconf -e "mydomain = $(hostname -d)"
@@ -671,16 +713,54 @@ configure_mail_server() {
     postconf -e "smtpd_sasl_type = dovecot"
     postconf -e "smtpd_sasl_path = private/auth"
     postconf -e "smtpd_sasl_auth_enable = yes"
-    postconf -e "smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination"
     
-    # Submission port (587)
+    # Güvenlik ayarları
+    postconf -e "smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination, check_policy_service unix:private/policyd-spf"
+    postconf -e "smtpd_helo_required = yes"
+    postconf -e "smtpd_helo_restrictions = permit_mynetworks, reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname"
+    postconf -e "smtpd_sender_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_non_fqdn_sender, reject_unknown_sender_domain"
+    
+    # TLS ayarları
+    postconf -e "smtpd_tls_cert_file = /etc/ssl/certs/ssl-cert-snakeoil.pem"
+    postconf -e "smtpd_tls_key_file = /etc/ssl/private/ssl-cert-snakeoil.key"
+    postconf -e "smtpd_tls_security_level = may"
+    postconf -e "smtp_tls_security_level = may"
+    postconf -e "smtpd_tls_auth_only = yes"
+    
+    # DKIM milter
+    postconf -e "milter_protocol = 6"
+    postconf -e "milter_default_action = accept"
+    postconf -e "smtpd_milters = inet:localhost:8891"
+    postconf -e "non_smtpd_milters = inet:localhost:8891"
+    
+    # Rate limiting (saatte 100 mail)
+    postconf -e "smtpd_client_message_rate_limit = 100"
+    postconf -e "smtpd_client_recipient_rate_limit = 100"
+    postconf -e "anvil_rate_time_unit = 3600s"
+    
+    # Message size limit (25MB)
+    postconf -e "message_size_limit = 26214400"
+    
+    # Submission port (587) ve SMTPS (465)
     if ! grep -q "^submission" /etc/postfix/master.cf; then
         cat >> /etc/postfix/master.cf << 'SUBMISSION'
 submission inet n       -       y       -       -       smtpd
   -o syslog_name=postfix/submission
   -o smtpd_tls_security_level=encrypt
   -o smtpd_sasl_auth_enable=yes
+  -o smtpd_tls_auth_only=yes
   -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_client_restrictions=permit_sasl_authenticated,reject
+  -o milter_macro_daemon_name=ORIGINATING
+smtps     inet  n       -       y       -       -       smtpd
+  -o syslog_name=postfix/smtps
+  -o smtpd_tls_wrappermode=yes
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_client_restrictions=permit_sasl_authenticated,reject
+  -o milter_macro_daemon_name=ORIGINATING
+policyd-spf  unix  -       n       n       -       0       spawn
+  user=policyd-spf argv=/usr/bin/policyd-spf
 SUBMISSION
     fi
     

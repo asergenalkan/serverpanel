@@ -1253,3 +1253,391 @@ func generateRandomPassword(length int) string {
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)[:length]
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DKIM VE MAİL GÜVENLİK
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// EmailSettings represents email settings for a domain
+type EmailSettings struct {
+	ID            int64  `json:"id"`
+	DomainID      int64  `json:"domain_id"`
+	DomainName    string `json:"domain_name"`
+	HourlyLimit   int    `json:"hourly_limit"`
+	DailyLimit    int    `json:"daily_limit"`
+	DKIMEnabled   bool   `json:"dkim_enabled"`
+	DKIMSelector  string `json:"dkim_selector"`
+	DKIMPublicKey string `json:"dkim_public_key,omitempty"`
+	SPFRecord     string `json:"spf_record"`
+	DMARCRecord   string `json:"dmarc_record"`
+	CatchAllEmail string `json:"catch_all_email"`
+}
+
+// GetEmailSettings returns email settings for a domain
+func (h *Handler) GetEmailSettings(c *fiber.Ctx) error {
+	domainID, err := strconv.ParseInt(c.Params("domain_id"), 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Geçersiz domain ID",
+		})
+	}
+
+	userID := c.Locals("user_id").(int64)
+	role := c.Locals("role").(string)
+
+	// Get domain info and check ownership
+	var domainName string
+	var domainUserID int64
+	err = h.db.QueryRow("SELECT name, user_id FROM domains WHERE id = ?", domainID).
+		Scan(&domainName, &domainUserID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Domain bulunamadı",
+		})
+	}
+
+	if role != models.RoleAdmin && domainUserID != userID {
+		return c.Status(fiber.StatusForbidden).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Bu domain'e erişim yetkiniz yok",
+		})
+	}
+
+	// Get or create settings
+	var settings EmailSettings
+	settings.DomainID = domainID
+	settings.DomainName = domainName
+
+	err = h.db.QueryRow(`
+		SELECT id, hourly_limit, daily_limit, dkim_enabled, dkim_selector, 
+		       COALESCE(dkim_public_key, ''), COALESCE(spf_record, ''), 
+		       COALESCE(dmarc_record, ''), COALESCE(catch_all_email, '')
+		FROM email_settings WHERE domain_id = ?
+	`, domainID).Scan(
+		&settings.ID, &settings.HourlyLimit, &settings.DailyLimit,
+		&settings.DKIMEnabled, &settings.DKIMSelector, &settings.DKIMPublicKey,
+		&settings.SPFRecord, &settings.DMARCRecord, &settings.CatchAllEmail,
+	)
+
+	if err != nil {
+		// Create default settings
+		cfg := config.Get()
+		settings.HourlyLimit = 100
+		settings.DailyLimit = 500
+		settings.DKIMSelector = "default"
+		settings.SPFRecord = fmt.Sprintf("v=spf1 ip4:%s ~all", cfg.ServerIP)
+		settings.DMARCRecord = fmt.Sprintf("v=DMARC1; p=none; rua=mailto:postmaster@%s", domainName)
+
+		h.db.Exec(`
+			INSERT INTO email_settings (domain_id, hourly_limit, daily_limit, dkim_selector, spf_record, dmarc_record)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`, domainID, settings.HourlyLimit, settings.DailyLimit, settings.DKIMSelector, settings.SPFRecord, settings.DMARCRecord)
+	}
+
+	return c.JSON(models.APIResponse{
+		Success: true,
+		Data:    settings,
+	})
+}
+
+// UpdateEmailSettings updates email settings for a domain
+func (h *Handler) UpdateEmailSettings(c *fiber.Ctx) error {
+	domainID, err := strconv.ParseInt(c.Params("domain_id"), 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Geçersiz domain ID",
+		})
+	}
+
+	userID := c.Locals("user_id").(int64)
+	role := c.Locals("role").(string)
+
+	var req struct {
+		HourlyLimit   int    `json:"hourly_limit"`
+		DailyLimit    int    `json:"daily_limit"`
+		CatchAllEmail string `json:"catch_all_email"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Geçersiz istek",
+		})
+	}
+
+	// Only admin can change rate limits
+	if role != models.RoleAdmin {
+		// Get current limits
+		var currentHourly, currentDaily int
+		h.db.QueryRow("SELECT hourly_limit, daily_limit FROM email_settings WHERE domain_id = ?", domainID).
+			Scan(&currentHourly, &currentDaily)
+		req.HourlyLimit = currentHourly
+		req.DailyLimit = currentDaily
+	}
+
+	// Get domain info
+	var domainUserID int64
+	err = h.db.QueryRow("SELECT user_id FROM domains WHERE id = ?", domainID).Scan(&domainUserID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Domain bulunamadı",
+		})
+	}
+
+	if role != models.RoleAdmin && domainUserID != userID {
+		return c.Status(fiber.StatusForbidden).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Bu domain'i düzenleme yetkiniz yok",
+		})
+	}
+
+	// Update settings
+	_, err = h.db.Exec(`
+		UPDATE email_settings 
+		SET hourly_limit = ?, daily_limit = ?, catch_all_email = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE domain_id = ?
+	`, req.HourlyLimit, req.DailyLimit, req.CatchAllEmail, domainID)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Ayarlar güncellenemedi",
+		})
+	}
+
+	return c.JSON(models.APIResponse{
+		Success: true,
+		Message: "E-posta ayarları güncellendi",
+	})
+}
+
+// GenerateDKIM generates DKIM keys for a domain
+func (h *Handler) GenerateDKIM(c *fiber.Ctx) error {
+	domainID, err := strconv.ParseInt(c.Params("domain_id"), 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Geçersiz domain ID",
+		})
+	}
+
+	userID := c.Locals("user_id").(int64)
+	role := c.Locals("role").(string)
+
+	// Get domain info
+	var domainName string
+	var domainUserID int64
+	err = h.db.QueryRow("SELECT name, user_id FROM domains WHERE id = ?", domainID).
+		Scan(&domainName, &domainUserID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Domain bulunamadı",
+		})
+	}
+
+	if role != models.RoleAdmin && domainUserID != userID {
+		return c.Status(fiber.StatusForbidden).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Bu domain için DKIM oluşturma yetkiniz yok",
+		})
+	}
+
+	// Generate DKIM keys
+	selector := "default"
+	keyDir := fmt.Sprintf("/etc/opendkim/keys/%s", domainName)
+
+	if config.IsDevelopment() {
+		return c.JSON(models.APIResponse{
+			Success: true,
+			Message: "DKIM anahtarları oluşturuldu (DEV)",
+			Data: map[string]string{
+				"selector":   selector,
+				"dns_record": fmt.Sprintf("%s._domainkey.%s", selector, domainName),
+				"public_key": "v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+			},
+		})
+	}
+
+	// Create key directory
+	os.MkdirAll(keyDir, 0700)
+	exec.Command("chown", "opendkim:opendkim", keyDir).Run()
+
+	// Generate keys using opendkim-genkey
+	cmd := exec.Command("opendkim-genkey", "-b", "2048", "-d", domainName, "-D", keyDir, "-s", selector, "-v")
+	cmd.Run()
+
+	// Read public key
+	publicKeyPath := filepath.Join(keyDir, selector+".txt")
+	publicKeyContent, err := os.ReadFile(publicKeyPath)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
+			Success: false,
+			Error:   "DKIM anahtarı oluşturulamadı",
+		})
+	}
+
+	// Read private key
+	privateKeyPath := filepath.Join(keyDir, selector+".private")
+	privateKeyContent, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
+			Success: false,
+			Error:   "DKIM özel anahtarı okunamadı",
+		})
+	}
+
+	// Set permissions
+	exec.Command("chown", "opendkim:opendkim", privateKeyPath).Run()
+	exec.Command("chmod", "600", privateKeyPath).Run()
+
+	// Update OpenDKIM KeyTable
+	keyTableFile := "/etc/opendkim/KeyTable"
+	keyTableEntry := fmt.Sprintf("%s._domainkey.%s %s:%s:%s\n", selector, domainName, domainName, selector, privateKeyPath)
+
+	// Remove old entry if exists
+	content, _ := os.ReadFile(keyTableFile)
+	lines := strings.Split(string(content), "\n")
+	var newLines []string
+	for _, line := range lines {
+		if !strings.Contains(line, domainName) {
+			newLines = append(newLines, line)
+		}
+	}
+	newLines = append(newLines, strings.TrimSpace(keyTableEntry))
+	os.WriteFile(keyTableFile, []byte(strings.Join(newLines, "\n")), 0644)
+
+	// Update OpenDKIM SigningTable
+	signingTableFile := "/etc/opendkim/SigningTable"
+	signingTableEntry := fmt.Sprintf("*@%s %s._domainkey.%s\n", domainName, selector, domainName)
+
+	content, _ = os.ReadFile(signingTableFile)
+	lines = strings.Split(string(content), "\n")
+	newLines = []string{}
+	for _, line := range lines {
+		if !strings.Contains(line, domainName) {
+			newLines = append(newLines, line)
+		}
+	}
+	newLines = append(newLines, strings.TrimSpace(signingTableEntry))
+	os.WriteFile(signingTableFile, []byte(strings.Join(newLines, "\n")), 0644)
+
+	// Add domain to TrustedHosts
+	trustedHostsFile := "/etc/opendkim/TrustedHosts"
+	content, _ = os.ReadFile(trustedHostsFile)
+	if !strings.Contains(string(content), domainName) {
+		f, _ := os.OpenFile(trustedHostsFile, os.O_APPEND|os.O_WRONLY, 0644)
+		f.WriteString(domainName + "\n")
+		f.Close()
+	}
+
+	// Restart OpenDKIM
+	exec.Command("systemctl", "restart", "opendkim").Run()
+
+	// Save to database
+	h.db.Exec(`
+		UPDATE email_settings 
+		SET dkim_enabled = 1, dkim_selector = ?, dkim_private_key = ?, dkim_public_key = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE domain_id = ?
+	`, selector, string(privateKeyContent), string(publicKeyContent), domainID)
+
+	log.Printf("🔐 DKIM anahtarları oluşturuldu: %s", domainName)
+
+	return c.JSON(models.APIResponse{
+		Success: true,
+		Message: "DKIM anahtarları oluşturuldu",
+		Data: map[string]string{
+			"selector":   selector,
+			"dns_record": fmt.Sprintf("%s._domainkey.%s", selector, domainName),
+			"dns_value":  string(publicKeyContent),
+		},
+	})
+}
+
+// GetDNSRecordsForEmail returns required DNS records for email
+func (h *Handler) GetDNSRecordsForEmail(c *fiber.Ctx) error {
+	domainID, err := strconv.ParseInt(c.Params("domain_id"), 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Geçersiz domain ID",
+		})
+	}
+
+	// Get domain info
+	var domainName string
+	err = h.db.QueryRow("SELECT name FROM domains WHERE id = ?", domainID).Scan(&domainName)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Domain bulunamadı",
+		})
+	}
+
+	cfg := config.Get()
+
+	// Get email settings
+	var settings EmailSettings
+	h.db.QueryRow(`
+		SELECT COALESCE(spf_record, ''), COALESCE(dmarc_record, ''), dkim_enabled, dkim_selector, COALESCE(dkim_public_key, '')
+		FROM email_settings WHERE domain_id = ?
+	`, domainID).Scan(&settings.SPFRecord, &settings.DMARCRecord, &settings.DKIMEnabled, &settings.DKIMSelector, &settings.DKIMPublicKey)
+
+	if settings.SPFRecord == "" {
+		settings.SPFRecord = fmt.Sprintf("v=spf1 ip4:%s ~all", cfg.ServerIP)
+	}
+	if settings.DMARCRecord == "" {
+		settings.DMARCRecord = fmt.Sprintf("v=DMARC1; p=none; rua=mailto:postmaster@%s", domainName)
+	}
+
+	records := []map[string]string{
+		{
+			"type":        "TXT",
+			"name":        "@",
+			"value":       settings.SPFRecord,
+			"description": "SPF - Hangi sunucuların mail gönderebileceğini belirtir",
+		},
+		{
+			"type":        "TXT",
+			"name":        "_dmarc",
+			"value":       settings.DMARCRecord,
+			"description": "DMARC - Mail doğrulama politikası",
+		},
+		{
+			"type":        "MX",
+			"name":        "@",
+			"value":       fmt.Sprintf("10 %s", cfg.ServerIP),
+			"description": "MX - Mail sunucusu",
+		},
+		{
+			"type":        "A",
+			"name":        "mail",
+			"value":       cfg.ServerIP,
+			"description": "Mail sunucu IP adresi",
+		},
+		{
+			"type":        "A",
+			"name":        "webmail",
+			"value":       cfg.ServerIP,
+			"description": "Webmail erişimi için",
+		},
+	}
+
+	if settings.DKIMEnabled && settings.DKIMPublicKey != "" {
+		records = append(records, map[string]string{
+			"type":        "TXT",
+			"name":        fmt.Sprintf("%s._domainkey", settings.DKIMSelector),
+			"value":       settings.DKIMPublicKey,
+			"description": "DKIM - Mail imzalama anahtarı",
+		})
+	}
+
+	return c.JSON(models.APIResponse{
+		Success: true,
+		Data:    records,
+	})
+}

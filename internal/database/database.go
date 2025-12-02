@@ -252,6 +252,35 @@ func (db *DB) migrate() error {
 			FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE
 		)`,
 
+		// Email settings (rate limits, DKIM, etc.)
+		`CREATE TABLE IF NOT EXISTS email_settings (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			domain_id INTEGER NOT NULL UNIQUE,
+			hourly_limit INTEGER DEFAULT 100,
+			daily_limit INTEGER DEFAULT 500,
+			dkim_enabled INTEGER DEFAULT 0,
+			dkim_selector TEXT DEFAULT 'default',
+			dkim_private_key TEXT,
+			dkim_public_key TEXT,
+			spf_record TEXT,
+			dmarc_record TEXT,
+			catch_all_email TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE
+		)`,
+
+		// Email send log (for rate limiting)
+		`CREATE TABLE IF NOT EXISTS email_send_log (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			email_account_id INTEGER NOT NULL,
+			recipient TEXT NOT NULL,
+			subject TEXT,
+			sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			status TEXT DEFAULT 'sent',
+			FOREIGN KEY (email_account_id) REFERENCES email_accounts(id) ON DELETE CASCADE
+		)`,
+
 		// Create indexes
 		`CREATE INDEX IF NOT EXISTS idx_dns_records_domain_id ON dns_records(domain_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_domains_user_id ON domains(user_id)`,
