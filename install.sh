@@ -1310,14 +1310,18 @@ migrate_database() {
         log_info "email_autoresponders tablosu mevcut"
     fi
     
-    # email_accounts tablosunda password_hash sütunu var mı kontrol et
-    if sqlite3 "$DB_PATH" "PRAGMA table_info(email_accounts);" | grep -q "password" && \
-       ! sqlite3 "$DB_PATH" "PRAGMA table_info(email_accounts);" | grep -q "password_hash"; then
-        log_progress "email_accounts tablosu güncelleniyor"
-        # SQLite'da sütun adı değiştirmek için tablo yeniden oluşturulmalı
+    # email_accounts tablosunda password_hash sütunu var mı kontrol et (eski şema: password, yeni şema: password_hash)
+    if sqlite3 "$DB_PATH" "PRAGMA table_info(email_accounts);" | grep -q "|password|" ; then
+        log_progress "email_accounts tablosu güncelleniyor (password -> password_hash)"
         sqlite3 "$DB_PATH" "ALTER TABLE email_accounts RENAME COLUMN password TO password_hash;" 2>/dev/null || true
+        log_done "password_hash sütunu güncellendi"
+    fi
+    
+    # email_accounts tablosunda quota_mb sütunu var mı kontrol et (eski şema: quota, yeni şema: quota_mb)
+    if sqlite3 "$DB_PATH" "PRAGMA table_info(email_accounts);" | grep -q "|quota|" ; then
+        log_progress "email_accounts tablosu güncelleniyor (quota -> quota_mb)"
         sqlite3 "$DB_PATH" "ALTER TABLE email_accounts RENAME COLUMN quota TO quota_mb;" 2>/dev/null || true
-        log_done "email_accounts tablosu güncellendi"
+        log_done "quota_mb sütunu güncellendi"
     fi
     
     log_info "Veritabanı migrasyonu tamamlandı ✓"
@@ -1396,7 +1400,7 @@ CRONEOF
 health_check() {
     log_step "Sistem Sağlık Kontrolü"
     
-    local services=("mysql" "apache2" "php${PHP_VERSION}-fpm" "bind9" "pure-ftpd" "serverpanel")
+    local services=("mysql" "apache2" "php${PHP_VERSION}-fpm" "bind9" "pure-ftpd" "postfix" "dovecot" "serverpanel")
     for svc in "${services[@]}"; do
         if systemctl is-active --quiet "$svc"; then
             log_info "$svc: aktif ✓"
