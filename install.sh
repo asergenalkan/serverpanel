@@ -693,17 +693,25 @@ SUBMISSION
     
     log_done "Postfix yapılandırıldı"
     
-    # 4. Dovecot yapılandırma
+    # 4. Dovecot IMAP/POP3 paketlerini kur
+    log_progress "Dovecot IMAP/POP3 kuruluyor"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y dovecot-imapd dovecot-pop3d > /dev/null 2>&1
+    log_done "Dovecot IMAP/POP3 kuruldu"
+    
+    # 5. Dovecot yapılandırma
     log_progress "Dovecot yapılandırılıyor"
     
     # Dovecot users dosyası
     touch /etc/dovecot/users
-    chmod 600 /etc/dovecot/users
+    chown root:dovecot /etc/dovecot/users
+    chmod 640 /etc/dovecot/users
     
-    # Dovecot auth config
+    # Dovecot auth config - sistem auth'u devre dışı bırak, passwd-file kullan
     cat > /etc/dovecot/conf.d/10-auth.conf << 'DOVECOTAUTH'
 disable_plaintext_auth = no
 auth_mechanisms = plain login
+
+#!include auth-system.conf.ext
 
 passdb {
   driver = passwd-file
@@ -767,7 +775,7 @@ configure_roundcube() {
     
     # 1. Roundcube kur
     log_progress "Roundcube kuruluyor"
-    DEBIAN_FRONTEND=noninteractive apt-get install -y roundcube roundcube-mysql > /dev/null 2>&1
+    DEBIAN_FRONTEND=noninteractive apt-get install -y roundcube roundcube-core roundcube-mysql > /dev/null 2>&1
     
     if [[ ! -d /usr/share/roundcube ]]; then
         log_warn "Roundcube kurulamadı, atlanıyor"
@@ -775,7 +783,51 @@ configure_roundcube() {
     fi
     log_done "Roundcube kuruldu"
     
-    # 2. Apache alias oluştur
+    # 2. Roundcube config dosyasını oluştur
+    log_progress "Roundcube config yapılandırılıyor"
+    cat > /etc/roundcube/config.inc.php << 'RCCONFIG'
+<?php
+
+$config = [];
+
+// Database
+include_once("/etc/roundcube/debian-db.php");
+
+// Directories
+$config['temp_dir'] = '/tmp/roundcube';
+$config['log_dir'] = '/var/log/roundcube';
+$config['log_driver'] = 'file';
+
+// Mailboxes
+$config['drafts_mbox'] = 'Drafts';
+$config['junk_mbox'] = 'Junk';
+$config['sent_mbox'] = 'Sent';
+$config['trash_mbox'] = 'Trash';
+
+// IMAP host
+$config['default_host'] = 'localhost';
+$config['default_port'] = 143;
+
+// SMTP server
+$config['smtp_server'] = 'localhost';
+$config['smtp_port'] = 587;
+$config['smtp_user'] = '%u';
+$config['smtp_pass'] = '%p';
+
+// System
+$config['support_url'] = '';
+$config['product_name'] = 'ServerPanel Webmail';
+$config['des_key'] = 'rcmail-!24ByteDESkey*Str';
+$config['plugins'] = [];
+$config['skin'] = 'elastic';
+$config['enable_spellcheck'] = false;
+RCCONFIG
+
+    # Roundcube dizinlerini oluştur
+    mkdir -p /tmp/roundcube /var/log/roundcube
+    chown www-data:www-data /tmp/roundcube /var/log/roundcube
+    
+    # 3. Apache alias oluştur
     log_progress "Roundcube Apache yapılandırması"
     cat > /etc/apache2/conf-available/roundcube.conf << 'RCAPACHE'
 Alias /webmail /usr/share/roundcube
@@ -784,11 +836,6 @@ Alias /webmail /usr/share/roundcube
     Options +FollowSymLinks
     AllowOverride All
     Require all granted
-    
-    <IfModule mod_php.c>
-        php_flag display_errors Off
-        php_flag log_errors On
-    </IfModule>
 </Directory>
 
 <Directory /usr/share/roundcube/config>

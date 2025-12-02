@@ -283,8 +283,8 @@ func (h *Handler) CreateEmailAccount(c *fiber.Ctx) error {
 
 	accountID, _ := result.LastInsertId()
 
-	// Create mailbox on system
-	go h.createMailbox(email, string(hashedPassword), req.QuotaMB, domainName)
+	// Create mailbox on system (pass plain password for doveadm to hash)
+	go h.createMailbox(email, req.Password, req.QuotaMB, domainName)
 
 	log.Printf("📧 E-posta hesabı oluşturuldu: %s", email)
 
@@ -992,7 +992,7 @@ func (h *Handler) getMailboxSize(email string) int {
 // SİSTEM KOMUTLARI (Postfix/Dovecot)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-func (h *Handler) createMailbox(email, passwordHash string, quotaMB int, domain string) {
+func (h *Handler) createMailbox(email, password string, quotaMB int, domain string) {
 	if config.IsDevelopment() {
 		log.Printf("🔧 [DEV] Mailbox oluşturulacak: %s", email)
 		return
@@ -1013,6 +1013,17 @@ func (h *Handler) createMailbox(email, passwordHash string, quotaMB int, domain 
 	// Set ownership to vmail user
 	exec.Command("chown", "-R", "vmail:vmail", maildir).Run()
 
+	// Add domain to Postfix virtual domains if not exists
+	vdomainsFile := "/etc/postfix/vdomains"
+	vdomainsContent, _ := os.ReadFile(vdomainsFile)
+	if !strings.Contains(string(vdomainsContent), domain) {
+		f, err := os.OpenFile(vdomainsFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err == nil {
+			f.WriteString(domain + "\n")
+			f.Close()
+		}
+	}
+
 	// Add to Postfix virtual mailbox maps
 	virtualMailboxFile := "/etc/postfix/vmailbox"
 	f, err := os.OpenFile(virtualMailboxFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -1022,19 +1033,29 @@ func (h *Handler) createMailbox(email, passwordHash string, quotaMB int, domain 
 		exec.Command("postmap", virtualMailboxFile).Run()
 	}
 
+	// Generate Dovecot-compatible password hash using doveadm
+	dovecotHash := ""
+	out, err := exec.Command("doveadm", "pw", "-s", "BLF-CRYPT", "-p", password).Output()
+	if err == nil {
+		dovecotHash = strings.TrimSpace(string(out))
+	} else {
+		log.Printf("⚠️ doveadm pw hatası: %v", err)
+		return
+	}
+
 	// Add to Dovecot passwd file
 	passwdFile := "/etc/dovecot/users"
-	f, err = os.OpenFile(passwdFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	f, err = os.OpenFile(passwdFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0640)
 	if err == nil {
-		// Format: user@domain:{SCHEME}password:uid:gid:gecos:home:shell:extra_fields
-		f.WriteString(fmt.Sprintf("%s:%s:5000:5000::%s::userdb_quota_rule=*:storage=%dM\n",
-			email, passwordHash, maildir, quotaMB))
+		// Format: user@domain:{SCHEME}password
+		f.WriteString(fmt.Sprintf("%s:%s\n", email, dovecotHash))
 		f.Close()
+		// Set proper ownership
+		exec.Command("chown", "root:dovecot", passwdFile).Run()
 	}
 
 	// Reload services
 	exec.Command("postfix", "reload").Run()
-	exec.Command("doveadm", "reload").Run()
 
 	log.Printf("✅ Mailbox oluşturuldu: %s", email)
 }
