@@ -4,27 +4,35 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 
 ---
 
-## 📊 Mevcut Durum Özeti
+## 📊 Mevcut Durum Özeti (Son Güncelleme: 2 Aralık 2024)
 
 | Kategori | cPanel/WHM | ServerPanel | Tamamlanma |
 |----------|------------|-------------|------------|
-| Authentication | ✅ | ✅ | %100 |
-| Dashboard | ✅ | ✅ | %80 |
-| Kullanıcı Yönetimi | ✅ | ✅ Çalışıyor | %70 |
-| Domain Yönetimi | ✅ | ✅ Tam UI + Subdomain | %90 |
-| DNS Yönetimi | ✅ | ✅ BIND9 Zone Editor + Search | %90 |
+| Authentication | ✅ | ✅ JWT + Rol bazlı | %100 |
+| Dashboard | ✅ | ✅ Sistem istatistikleri | %85 |
+| Kullanıcı Yönetimi | ✅ | ✅ CRUD + Paket atama | %75 |
+| Domain Yönetimi | ✅ | ✅ Domain + Subdomain + Silme seçenekleri | %95 |
+| DNS Yönetimi | ✅ | ✅ BIND9 Zone Editor + A kayıt ekleme | %90 |
 | E-posta Yönetimi | ✅ | ⚠️ API var | %10 |
-| Veritabanı Yönetimi | ✅ | ✅ phpMyAdmin SSO | %80 |
-| Dosya Yönetimi | ✅ | ✅ Tam fonksiyonel | %90 |
+| Veritabanı Yönetimi | ✅ | ✅ phpMyAdmin SSO | %85 |
+| Dosya Yönetimi | ✅ | ✅ Tam fonksiyonel | %95 |
 | FTP Yönetimi | ✅ | ✅ Pure-FTPd | %90 |
-| SSL/TLS | ✅ | ✅ Let's Encrypt | %90 |
+| SSL/TLS | ✅ | ✅ Let's Encrypt + Subdomain SSL | %95 |
 | PHP Yönetimi | ✅ | ✅ MultiPHP | %80 |
 | Backup | ✅ | ❌ | %0 |
 | Cron Jobs | ✅ | ❌ | %0 |
 | Güvenlik | ✅ | ⚠️ Temel | %20 |
 | Metrics/Logs | ✅ | ⚠️ Temel | %15 |
 | Reseller Sistemi | ✅ | ⚠️ Rol var | %10 |
-| **Kurulum Scripti** | ✅ | ✅ Çalışıyor | %90 |
+| **Kurulum Scripti** | ✅ | ✅ Tam otomatik + Migration | %95 |
+
+### 🆕 Son Eklenen Özellikler
+- ✅ Subdomain SSL sertifikası alma (her FQDN için ayrı)
+- ✅ SSL Status sayfası (cPanel benzeri tablo görünümü)
+- ✅ Domain/Subdomain silme sırasında dosya silme seçeneği
+- ✅ Subdomain için modern hoşgeldin sayfası
+- ✅ DNS A kaydı otomatik ekleme (subdomain için)
+- ✅ Veritabanı migration (mevcut kurulumlar için)
 
 ---
 

@@ -35,8 +35,11 @@ Admin giriş yapar
 │
 ├── SSL/Let's Encrypt → ✅ Tam fonksiyonel!
 │   ├── Tek tıkla SSL sertifikası alma
+│   ├── Subdomain/WWW/Mail için ayrı SSL alma
+│   ├── cPanel benzeri SSL Status tablosu
+│   ├── SAN/Wildcard sertifika kontrolü
 │   ├── Otomatik yenileme (cron job)
-│   ├── SSL durumu görüntüleme
+│   ├── SSL durumu görüntüleme (detaylı)
 │   ├── Sertifika yenileme
 │   └── Sertifika iptal etme
 │
@@ -84,10 +87,12 @@ Admin giriş yapar
 ├── Domain & Subdomain Yönetimi → ✅ Tam fonksiyonel!
 │   ├── Domain ekleme/silme (addon domain)
 │   ├── Subdomain ekleme/silme
+│   ├── Silme sırasında dosya silme seçeneği
+│   ├── Modern hoşgeldin sayfası (domain ve subdomain için aynı)
 │   ├── Yönlendirme desteği (301/302)
 │   ├── Paket limitleri kontrolü
 │   ├── Otomatik Apache vhost oluşturma
-│   ├── Otomatik DNS zone/kayıt oluşturma
+│   ├── Otomatik DNS A kaydı ekleme (subdomain için)
 │   └── Kullanım limitleri gösterimi
 ```
 
