@@ -427,7 +427,11 @@ func (h *Handler) IssueSSLForFQDN(c *fiber.Ctx) error {
 
 	// Determine webroot based on domain type
 	var webRoot string
-	if req.DomainType == "subdomain" {
+	switch req.DomainType {
+	case "webmail", "mail", "ftp":
+		// System subdomains always use /var/www/html for ACME challenge
+		webRoot = "/var/www/html"
+	case "subdomain":
 		// Check if subdomain exists in database
 		var subdomainDocRoot string
 		err := h.db.QueryRow("SELECT document_root FROM subdomains WHERE full_name = ?", req.FQDN).Scan(&subdomainDocRoot)
@@ -436,13 +440,15 @@ func (h *Handler) IssueSSLForFQDN(c *fiber.Ctx) error {
 		} else {
 			webRoot = filepath.Join("/home", username, "public_html", req.FQDN)
 		}
-	} else {
-		// www or mail - use parent domain's webroot
+		if _, err := os.Stat(webRoot); os.IsNotExist(err) {
+			webRoot = "/var/www/html"
+		}
+	default:
+		// www - use parent domain's webroot
 		webRoot = filepath.Join("/home", username, "public_html")
-	}
-
-	if _, err := os.Stat(webRoot); os.IsNotExist(err) {
-		webRoot = "/var/www/html"
+		if _, err := os.Stat(webRoot); os.IsNotExist(err) {
+			webRoot = "/var/www/html"
+		}
 	}
 
 	// Get email
