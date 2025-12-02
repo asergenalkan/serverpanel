@@ -706,19 +706,28 @@ TRUSTEDHOSTS
     postconf -e "inet_interfaces = all"
     postconf -e "inet_protocols = ipv4"
     postconf -e "mydestination = localhost"
+    postconf -e "mynetworks = 127.0.0.0/8 [::1]/128"
+    postconf -e "relay_domains ="
+    
+    # Virtual mailbox ayarları
     postconf -e "virtual_transport = lmtp:unix:private/dovecot-lmtp"
-    postconf -e "virtual_mailbox_domains = /etc/postfix/vdomains"
+    postconf -e "virtual_mailbox_domains = hash:/etc/postfix/vdomains"
     postconf -e "virtual_mailbox_maps = hash:/etc/postfix/vmailbox"
     postconf -e "virtual_alias_maps = hash:/etc/postfix/virtual"
+    postconf -e "virtual_mailbox_base = /var/mail/vhosts"
+    postconf -e "virtual_uid_maps = static:5000"
+    postconf -e "virtual_gid_maps = static:5000"
+    
+    # SASL authentication
     postconf -e "smtpd_sasl_type = dovecot"
     postconf -e "smtpd_sasl_path = private/auth"
     postconf -e "smtpd_sasl_auth_enable = yes"
     
-    # Güvenlik ayarları
-    postconf -e "smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination, check_policy_service unix:private/policyd-spf"
+    # Güvenlik ayarları - dış mail gönderimi için düzeltildi
+    postconf -e "smtpd_recipient_restrictions = permit_mynetworks, permit_sasl_authenticated, reject_unauth_destination"
     postconf -e "smtpd_helo_required = yes"
-    postconf -e "smtpd_helo_restrictions = permit_mynetworks, reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname"
-    postconf -e "smtpd_sender_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_non_fqdn_sender, reject_unknown_sender_domain"
+    postconf -e "smtpd_helo_restrictions = permit_mynetworks, permit_sasl_authenticated, reject_invalid_helo_hostname"
+    postconf -e "smtpd_sender_restrictions = permit_mynetworks, permit_sasl_authenticated, reject_non_fqdn_sender"
     
     # TLS ayarları
     postconf -e "smtpd_tls_cert_file = /etc/ssl/certs/ssl-cert-snakeoil.pem"
@@ -764,10 +773,11 @@ policyd-spf  unix  -       n       n       -       0       spawn
 SUBMISSION
     fi
     
-    # Boş dosyalar oluştur
+    # Boş dosyalar oluştur ve hash'le
     touch /etc/postfix/vdomains
     touch /etc/postfix/vmailbox
     touch /etc/postfix/virtual
+    postmap /etc/postfix/vdomains > /dev/null 2>&1 || true
     postmap /etc/postfix/vmailbox > /dev/null 2>&1 || true
     postmap /etc/postfix/virtual > /dev/null 2>&1 || true
     
@@ -972,11 +982,12 @@ $config['trash_mbox'] = 'Trash';
 $config['default_host'] = 'localhost';
 $config['default_port'] = 143;
 
-// SMTP server
+// SMTP server - localhost için auth gerekmez
 $config['smtp_server'] = 'localhost';
-$config['smtp_port'] = 587;
-$config['smtp_user'] = '%u';
-$config['smtp_pass'] = '%p';
+$config['smtp_port'] = 25;
+$config['smtp_user'] = '';
+$config['smtp_pass'] = '';
+$config['smtp_auth_type'] = null;
 
 // System
 $config['support_url'] = '';
