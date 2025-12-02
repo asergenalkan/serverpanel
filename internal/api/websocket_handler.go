@@ -404,10 +404,25 @@ func (h *Handler) uninstallPHPWithLogs(taskID, version string) (bool, error) {
 	taskManager.addLog(taskID, fmt.Sprintf("🗑️ PHP %s paketleri kaldırılıyor...", version))
 	taskManager.addLog(taskID, "")
 
+	// Use purge to remove config files as well
 	err := RunCommandWithLogs(taskID, "bash", "-c",
-		fmt.Sprintf("DEBIAN_FRONTEND=noninteractive apt-get remove -y php%s-*", version))
+		fmt.Sprintf("DEBIAN_FRONTEND=noninteractive apt-get purge -y php%s-*", version))
 
-	return err == nil, err
+	if err != nil {
+		return false, err
+	}
+
+	// Clean up any remaining config directories
+	taskManager.addLog(taskID, "")
+	taskManager.addLog(taskID, "🧹 Kalan config dosyaları temizleniyor...")
+	exec.Command("rm", "-rf", fmt.Sprintf("/etc/php/%s", version)).Run()
+
+	// Run autoremove to clean up dependencies
+	taskManager.addLog(taskID, "")
+	taskManager.addLog(taskID, "🧹 Kullanılmayan bağımlılıklar temizleniyor...")
+	RunCommandWithLogs(taskID, "bash", "-c", "DEBIAN_FRONTEND=noninteractive apt-get autoremove -y")
+
+	return true, nil
 }
 
 func (h *Handler) installExtensionWithLogs(taskID, phpVersion, extension string) (bool, error) {
