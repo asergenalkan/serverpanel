@@ -155,4 +155,11 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Post("/files/compress", h.CompressFiles)
 	protected.Post("/files/extract", h.ExtractFiles)
 	protected.Get("/files/info", h.GetFileInfo)
+
+	// Server Status (admin only)
+	protected.Get("/server/info", admin, h.GetServerInfo)
+	protected.Get("/server/daily-log", admin, h.GetDailyLog)
+	protected.Get("/server/processes", admin, h.GetTopProcesses)
+	protected.Get("/server/queue", admin, h.GetTaskQueue)
+	protected.Post("/server/queue/flush", admin, h.FlushMailQueue)
 }

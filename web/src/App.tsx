@@ -14,6 +14,10 @@ import DNSZoneEditor from '@/pages/DNSZoneEditor';
 import Packages from '@/pages/Packages';
 import DomainManager from '@/pages/DomainManager';
 import Email from '@/pages/Email';
+import ServerInfo from '@/pages/server/ServerInfo';
+import DailyLog from '@/pages/server/DailyLog';
+import TopProcesses from '@/pages/server/TopProcesses';
+import TaskQueue from '@/pages/server/TaskQueue';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -178,6 +182,39 @@ function AppRoutes() {
           <ProtectedRoute>
             <Email />
           </ProtectedRoute>
+        }
+      />
+      {/* Server Status Routes (Admin Only) */}
+      <Route
+        path="/server/info"
+        element={
+          <AdminRoute>
+            <ServerInfo />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/server/daily-log"
+        element={
+          <AdminRoute>
+            <DailyLog />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/server/processes"
+        element={
+          <AdminRoute>
+            <TopProcesses />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/server/queue"
+        element={
+          <AdminRoute>
+            <TaskQueue />
+          </AdminRoute>
         }
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

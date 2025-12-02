@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -23,6 +23,12 @@ import {
   Upload,
   Globe2,
   Layers,
+  Activity,
+  ChevronDown,
+  ChevronRight,
+  Cpu,
+  FileText,
+  ListTodo,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -60,10 +66,22 @@ const adminMenuItems = [
   { icon: Settings, label: 'Ayarlar', href: '/settings', disabled: true },
 ];
 
+// Server status submenu items (admin only)
+const serverStatusItems = [
+  { icon: Cpu, label: 'Sunucu Bilgileri', href: '/server/info' },
+  { icon: FileText, label: 'Günlük İşlem Günlüğü', href: '/server/daily-log' },
+  { icon: Activity, label: 'Top Processes', href: '/server/processes' },
+  { icon: ListTodo, label: 'Task Queue', href: '/server/queue' },
+];
+
 export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+  const [serverStatusOpen, setServerStatusOpen] = useState(false);
+
+  // Check if current path is in server status section
+  const isServerStatusActive = location.pathname.startsWith('/server/');
 
   return (
     <div className="min-h-screen bg-[var(--color-page-bg)] transition-colors">
@@ -123,6 +141,47 @@ export default function Layout({ children }: LayoutProps) {
                   )}
                 </Link>
               ))}
+
+              {/* Server Status Dropdown */}
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-2">
+                  Sunucu
+                </p>
+                <button
+                  onClick={() => setServerStatusOpen(!serverStatusOpen)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isServerStatusActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  <Activity className="w-5 h-5" />
+                  Sunucu Durumu
+                  {serverStatusOpen || isServerStatusActive ? (
+                    <ChevronDown className="w-4 h-4 ml-auto" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 ml-auto" />
+                  )}
+                </button>
+                {(serverStatusOpen || isServerStatusActive) && (
+                  <div className="ml-4 mt-1 space-y-1">
+                    {serverStatusItems.map((item) => (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          location.pathname === item.href
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        }`}
+                      >
+                        <item.icon className="w-4 h-4" />
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <>
