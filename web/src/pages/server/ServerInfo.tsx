@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Cpu, HardDrive, MemoryStick, Clock, Server, Wifi, Activity } from 'lucide-react';
+import Layout from '@/components/Layout';
 import api from '@/lib/api';
 
 interface ServerInfo {
@@ -87,27 +88,28 @@ export default function ServerInfoPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Sunucu Bilgileri</h1>
-        <p className="text-muted-foreground">Sunucu durumu ve kaynak kullanımı</p>
-      </div>
+    <Layout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Sunucu Bilgileri</h1>
+          <p className="text-muted-foreground">Sunucu durumu ve kaynak kullanımı</p>
+        </div>
 
-      {/* System Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-500/10 rounded-lg">
-                <Server className="w-6 h-6 text-blue-500" />
+        {/* System Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-500/10 rounded-lg">
+                  <Server className="w-6 h-6 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Hostname</p>
+                  <p className="font-semibold">{info?.hostname || '-'}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Hostname</p>
-                <p className="font-semibold">{info?.hostname || '-'}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
         <Card>
           <CardContent className="pt-6">
@@ -297,5 +299,6 @@ export default function ServerInfoPage() {
         </CardContent>
       </Card>
     </div>
+    </Layout>
   );
 }

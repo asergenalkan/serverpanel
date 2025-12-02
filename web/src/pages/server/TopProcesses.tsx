@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Activity, RefreshCw } from 'lucide-react';
+import Layout from '@/components/Layout';
 import api from '@/lib/api';
 
 interface Process {
@@ -49,7 +50,8 @@ export default function TopProcessesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <Layout>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Top Processes</h1>
@@ -141,5 +143,6 @@ export default function TopProcessesPage() {
         </CardContent>
       </Card>
     </div>
+    </Layout>
   );
 }

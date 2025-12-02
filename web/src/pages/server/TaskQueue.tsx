@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ListTodo, RefreshCw, Mail, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
+import Layout from '@/components/Layout';
 import api from '@/lib/api';
 
 interface MailQueueItem {
@@ -62,7 +63,8 @@ export default function TaskQueuePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <Layout>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Task Queue</h1>
@@ -260,5 +262,6 @@ export default function TaskQueuePage() {
         </>
       )}
     </div>
+    </Layout>
   );
 }

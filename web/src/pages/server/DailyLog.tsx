@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FileText, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import Layout from '@/components/Layout';
 import api from '@/lib/api';
 
 interface DailyLogEntry {
@@ -55,8 +56,9 @@ export default function DailyLogPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <Layout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Günlük İşlem Günlüğü</h1>
           <p className="text-muted-foreground">Kullanıcı bazlı kaynak kullanımı</p>
@@ -173,5 +175,6 @@ export default function DailyLogPage() {
         </CardContent>
       </Card>
     </div>
+    </Layout>
   );
 }
