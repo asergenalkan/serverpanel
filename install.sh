@@ -38,7 +38,7 @@ PHP_VERSION=""
 
 # Sayaçlar
 STEP_CURRENT=0
-STEP_TOTAL=14
+STEP_TOTAL=15
 ERRORS=0
 WARNINGS=0
 START_TIME=$(date +%s)
@@ -1014,6 +1014,58 @@ install_serverpanel() {
     fi
 }
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# VERİTABANI MİGRASYONU
+# ═══════════════════════════════════════════════════════════════════════════════
+
+migrate_database() {
+    log_step "Veritabanı Migrasyonu"
+    
+    local DB_PATH="/root/.serverpanel/panel.db"
+    
+    # Veritabanı yoksa migration gerekli değil (yeni kurulum)
+    if [[ ! -f "$DB_PATH" ]]; then
+        log_info "Yeni kurulum, migration gerekli değil"
+        return 0
+    fi
+    
+    log_progress "Veritabanı şeması kontrol ediliyor"
+    
+    # domains tablosunda domain_type sütunu var mı kontrol et
+    if ! sqlite3 "$DB_PATH" "PRAGMA table_info(domains);" | grep -q "domain_type"; then
+        log_progress "domains tablosu güncelleniyor"
+        sqlite3 "$DB_PATH" "ALTER TABLE domains ADD COLUMN domain_type TEXT DEFAULT 'primary';"
+        sqlite3 "$DB_PATH" "ALTER TABLE domains ADD COLUMN parent_domain_id INTEGER;"
+        log_done "domains tablosu güncellendi"
+    else
+        log_info "domains tablosu güncel"
+    fi
+    
+    # subdomains tablosu var mı kontrol et
+    if ! sqlite3 "$DB_PATH" ".tables" | grep -q "subdomains"; then
+        log_progress "subdomains tablosu oluşturuluyor"
+        sqlite3 "$DB_PATH" "CREATE TABLE IF NOT EXISTS subdomains (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            domain_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            full_name TEXT UNIQUE NOT NULL,
+            document_root TEXT,
+            redirect_url TEXT,
+            redirect_type TEXT,
+            active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE
+        );"
+        log_done "subdomains tablosu oluşturuldu"
+    else
+        log_info "subdomains tablosu mevcut"
+    fi
+    
+    log_info "Veritabanı migrasyonu tamamlandı ✓"
+}
+
 create_service() {
     log_step "Servis Oluşturuluyor"
     
@@ -1156,6 +1208,7 @@ main() {
     install_phpmyadmin
     install_go
     install_serverpanel
+    migrate_database
     create_service
     configure_ssl
     health_check
