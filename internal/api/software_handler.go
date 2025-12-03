@@ -776,8 +776,28 @@ func (h *Handler) UninstallSoftware(c *fiber.Ctx) error {
 		})
 	}
 
+	// Special handling for certain packages
+	packageToRemove := req.Package
+	preRemoveCmd := ""
+
+	switch req.Package {
+	case "clamav":
+		// ClamAV has daemon package too
+		packageToRemove = "clamav clamav-daemon clamav-freshclam"
+		preRemoveCmd = "systemctl stop clamav-daemon clamav-freshclam 2>/dev/null; systemctl disable clamav-daemon 2>/dev/null"
+	case "spamassassin":
+		preRemoveCmd = "systemctl stop spamassassin 2>/dev/null; systemctl disable spamassassin 2>/dev/null"
+	case "fail2ban":
+		preRemoveCmd = "systemctl stop fail2ban 2>/dev/null; systemctl disable fail2ban 2>/dev/null"
+	}
+
+	// Run pre-remove commands if any
+	if preRemoveCmd != "" {
+		exec.Command("bash", "-c", preRemoveCmd).Run()
+	}
+
 	// Remove package
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("DEBIAN_FRONTEND=noninteractive apt-get remove -y %s", req.Package))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("DEBIAN_FRONTEND=noninteractive apt-get remove -y %s", packageToRemove))
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
