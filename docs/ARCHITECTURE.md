@@ -109,6 +109,12 @@ Admin giriş yapar
 │   ├── Top Processes
 │   └── Task Queue
 │
+├── Sistem Sağlığı (Admin) → ✅ Tam fonksiyonel!
+│   ├── Arka Plan İşlem Sonlandırıcı (tehlikeli işlemler, güvenilir kullanıcılar)
+│   ├── İşlem Yöneticisi (CPU/Memory kullanımı, kill, kullanıcı filtreleme)
+│   ├── Geçerli Disk Kullanımı (disk bilgisi, I/O istatistikleri)
+│   └── Geçerli Çalışma İşlemleri (tüm işlemler listesi)
+│
 ├── Spam Filtreleri → ✅ Tam fonksiyonel!
 │   ├── SpamAssassin ayarları (spam skoru, otomatik silme)
 │   ├── ClamAV antivirüs durumu görüntüleme

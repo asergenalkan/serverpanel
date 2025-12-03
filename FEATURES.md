@@ -19,7 +19,7 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 | FTP Yönetimi | ✅ | ✅ Pure-FTPd | %90 |
 | SSL/TLS | ✅ | ✅ Let's Encrypt + Otomatik Vhost | %98 |
 | **PHP Yönetimi** | ✅ | ✅ **MultiPHP + Yazılım Yöneticisi** | **%95** |
-| **Sunucu Yönetimi** | ✅ | ✅ **Sunucu Durumu + Yazılım Yöneticisi** | **%90** |
+| **Sunucu Yönetimi** | ✅ | ✅ **Sunucu Durumu + Yazılım Yöneticisi + Sistem Sağlığı** | **%95** |
 | Backup | ✅ | ❌ | %0 |
 | **Cron Jobs** | ✅ | ✅ **Tam fonksiyonel** | **%95** |
 | **Güvenlik** | ✅ | ✅ **SpamAssassin + ClamAV + Spam Filtreleri UI** | **%60** |
@@ -29,6 +29,11 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 | **UI/UX** | ✅ | ✅ **Lottie Loading Animasyonları + Tema Uyumu** | **%90** |
 
 ### 🆕 Son Eklenen Özellikler (3 Aralık 2025)
+- ✅ **Sistem Sağlığı Bölümü** (YENİ!)
+  - Arka Plan İşlem Sonlandırıcı (tehlikeli işlemler, güvenilir kullanıcılar)
+  - İşlem Yöneticisi (CPU/Memory kullanımı, kill, kullanıcı filtreleme)
+  - Geçerli Disk Kullanımı (disk bilgisi, I/O istatistikleri)
+  - Geçerli Çalışma İşlemleri (tüm işlemler listesi)
 - ✅ **Cron Jobs Yönetimi** (YENİ!)
   - Cron işi oluşturma/düzenleme/silme
   - Zamanlama şablonları (dakikalık, saatlik, günlük, haftalık, aylık)
