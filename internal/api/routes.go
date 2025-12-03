@@ -213,5 +213,15 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Post("/cron/jobs/:id/run", h.RunCronJob)
 	protected.Get("/cron/presets", h.GetCronPresets)
 
+	// System Health (admin only)
+	protected.Get("/system/process-manager", admin, h.GetProcessManager)
+	protected.Get("/system/running-processes", admin, h.GetRunningProcesses)
+	protected.Get("/system/disk-usage", admin, h.GetDiskUsage)
+	protected.Post("/system/kill-process", admin, h.KillProcess)
+	protected.Post("/system/kill-user-processes", admin, h.KillUserProcesses)
+	protected.Get("/system/background-killer", admin, h.GetBackgroundKillerSettings)
+	protected.Post("/system/background-killer", admin, h.SaveBackgroundKillerSettings)
+	protected.Get("/system/users", admin, h.GetSystemUsers)
+
 	// Note: WebSocket route is defined in main.go to avoid SPA fallback conflict
 }

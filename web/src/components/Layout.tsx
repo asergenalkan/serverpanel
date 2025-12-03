@@ -29,6 +29,9 @@ import {
   Cpu,
   FileText,
   ListTodo,
+  Skull,
+  Terminal,
+  HeartPulse,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -74,8 +77,15 @@ const adminMenuItems = [
 const serverStatusItems = [
   { icon: Cpu, label: 'Sunucu Bilgileri', href: '/server/info' },
   { icon: FileText, label: 'Günlük İşlem Günlüğü', href: '/server/daily-log' },
-  { icon: Activity, label: 'Top Processes', href: '/server/processes' },
   { icon: ListTodo, label: 'Task Queue', href: '/server/queue' },
+];
+
+// System Health submenu items (admin only)
+const systemHealthItems = [
+  { icon: Skull, label: 'Arka Plan İşlem Sonlandırıcı', href: '/system/background-killer' },
+  { icon: Activity, label: 'İşlem Yöneticisi', href: '/system/process-manager' },
+  { icon: HardDrive, label: 'Geçerli Disk Kullanımı', href: '/system/disk-usage' },
+  { icon: Terminal, label: 'Geçerli Çalışma İşlemleri', href: '/system/running-processes' },
 ];
 
 // Software manager menu item (admin only)
@@ -86,9 +96,11 @@ export default function Layout({ children }: LayoutProps) {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [serverStatusOpen, setServerStatusOpen] = useState(false);
+  const [systemHealthOpen, setSystemHealthOpen] = useState(false);
 
   // Check if current path is in server status section
   const isServerStatusActive = location.pathname.startsWith('/server/');
+  const isSystemHealthActive = location.pathname.startsWith('/system/');
 
   return (
     <div className="min-h-screen bg-[var(--color-page-bg)] transition-colors">
@@ -165,6 +177,44 @@ export default function Layout({ children }: LayoutProps) {
                 {(serverStatusOpen || isServerStatusActive) && (
                   <div className="ml-4 mt-1 space-y-1">
                     {serverStatusItems.map((item) => (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          location.pathname === item.href
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        }`}
+                      >
+                        <item.icon className="w-4 h-4" />
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* System Health Dropdown */}
+              <div className="mt-2">
+                <button
+                  onClick={() => setSystemHealthOpen(!systemHealthOpen)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isSystemHealthActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  <HeartPulse className="w-5 h-5" />
+                  Sistem Sağlığı
+                  {systemHealthOpen || isSystemHealthActive ? (
+                    <ChevronDown className="w-4 h-4 ml-auto" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 ml-auto" />
+                  )}
+                </button>
+                {(systemHealthOpen || isSystemHealthActive) && (
+                  <div className="ml-4 mt-1 space-y-1">
+                    {systemHealthItems.map((item) => (
                       <Link
                         key={item.href}
                         to={item.href}

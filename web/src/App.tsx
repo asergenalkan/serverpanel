@@ -23,6 +23,10 @@ import ServerSettings from '@/pages/ServerSettings';
 import ServerFeatures from '@/pages/ServerFeatures';
 import SpamFilters from '@/pages/SpamFilters';
 import CronJobs from '@/pages/CronJobs';
+import BackgroundKiller from '@/pages/system/BackgroundKiller';
+import ProcessManager from '@/pages/system/ProcessManager';
+import DiskUsage from '@/pages/system/DiskUsage';
+import RunningProcesses from '@/pages/system/RunningProcesses';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -260,6 +264,38 @@ function AppRoutes() {
           <ProtectedRoute>
             <CronJobs />
           </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/system/background-killer"
+        element={
+          <AdminRoute>
+            <BackgroundKiller />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/system/process-manager"
+        element={
+          <AdminRoute>
+            <ProcessManager />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/system/disk-usage"
+        element={
+          <AdminRoute>
+            <DiskUsage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/system/running-processes"
+        element={
+          <AdminRoute>
+            <RunningProcesses />
+          </AdminRoute>
         }
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
