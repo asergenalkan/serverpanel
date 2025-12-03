@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import Layout from '@/components/Layout';
+import LoadingAnimation from '@/components/LoadingAnimation';
 import { Settings, Save, RefreshCw, Check, Info } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -101,10 +102,7 @@ export default function ServerSettings() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
-          <div className="h-10 w-10 rounded-full border-2 border-muted border-t-2 border-t-primary animate-spin"></div>
-          <p className="text-sm">Yükleniyor...</p>
-        </div>
+        <LoadingAnimation />
       </Layout>
     );
   }

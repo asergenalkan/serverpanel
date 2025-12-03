@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Mail, AlertTriangle, CheckCircle, Trash2, Plus, RefreshCw, Bug, Filter } from 'lucide-react';
 import Layout from '../components/Layout';
+import LoadingAnimation from '../components/LoadingAnimation';
 
 interface SpamSettings {
   enabled: boolean;
@@ -159,10 +160,7 @@ const SpamFiltersPage: React.FC = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
-          <div className="h-10 w-10 rounded-full border-2 border-muted border-t-2 border-t-primary animate-spin"></div>
-          <p className="text-sm">Yükleniyor...</p>
-        </div>
+        <LoadingAnimation />
       </Layout>
     );
   }
