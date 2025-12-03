@@ -66,7 +66,7 @@ const SpamFiltersPage: React.FC = () => {
   const fetchSettings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/spam/settings', {
+      const response = await fetch('/api/v1/spam/settings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -89,7 +89,7 @@ const SpamFiltersPage: React.FC = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/spam/settings', {
+      const response = await fetch('/api/v1/spam/settings', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -140,7 +140,7 @@ const SpamFiltersPage: React.FC = () => {
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/spam/update-clamav', {
+      const response = await fetch('/api/v1/spam/update-clamav', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
