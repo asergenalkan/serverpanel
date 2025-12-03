@@ -704,14 +704,34 @@ func (h *Handler) InstallSoftware(c *fiber.Ctx) error {
 		})
 	}
 
+	// Special handling for certain packages
+	packageToInstall := req.Package
+	postInstallCmd := ""
+
+	switch req.Package {
+	case "clamav":
+		// ClamAV needs daemon package too
+		packageToInstall = "clamav clamav-daemon"
+		postInstallCmd = "systemctl enable clamav-daemon && systemctl start clamav-daemon"
+	case "spamassassin":
+		postInstallCmd = "systemctl enable spamassassin && systemctl start spamassassin"
+	case "fail2ban":
+		postInstallCmd = "systemctl enable fail2ban && systemctl start fail2ban"
+	}
+
 	// Install package
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("DEBIAN_FRONTEND=noninteractive apt-get install -y %s", req.Package))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("DEBIAN_FRONTEND=noninteractive apt-get install -y %s", packageToInstall))
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Paket kurulumu başarısız: %s", string(output)),
 		})
+	}
+
+	// Run post-install commands if any
+	if postInstallCmd != "" {
+		exec.Command("bash", "-c", postInstallCmd).Run()
 	}
 
 	return c.JSON(models.APIResponse{
