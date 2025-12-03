@@ -252,12 +252,10 @@ func (db *DB) migrate() error {
 			FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE
 		)`,
 
-		// Email settings (rate limits, DKIM, etc.)
+		// Email settings (rate limits, DKIM, etc.) - Domain bazlı DKIM ayarları
 		`CREATE TABLE IF NOT EXISTS email_settings (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			domain_id INTEGER NOT NULL UNIQUE,
-			hourly_limit INTEGER DEFAULT 100,
-			daily_limit INTEGER DEFAULT 500,
 			dkim_enabled INTEGER DEFAULT 0,
 			dkim_selector TEXT DEFAULT 'default',
 			dkim_private_key TEXT,
@@ -270,15 +268,38 @@ func (db *DB) migrate() error {
 			FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE
 		)`,
 
-		// Email send log (for rate limiting)
+		// Email send log (for rate limiting) - Her gönderilen mail kaydedilir
 		`CREATE TABLE IF NOT EXISTS email_send_log (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			email_account_id INTEGER NOT NULL,
+			user_id INTEGER NOT NULL,
+			sender TEXT NOT NULL,
 			recipient TEXT NOT NULL,
 			subject TEXT,
+			message_id TEXT,
+			size_bytes INTEGER DEFAULT 0,
 			sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			status TEXT DEFAULT 'sent',
-			FOREIGN KEY (email_account_id) REFERENCES email_accounts(id) ON DELETE CASCADE
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+
+		// Mail queue - Rate limit aşıldığında mailler buraya eklenir
+		`CREATE TABLE IF NOT EXISTS mail_queue (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			sender TEXT NOT NULL,
+			recipient TEXT NOT NULL,
+			subject TEXT,
+			body TEXT,
+			headers TEXT,
+			priority INTEGER DEFAULT 5,
+			retry_count INTEGER DEFAULT 0,
+			max_retries INTEGER DEFAULT 3,
+			scheduled_at DATETIME,
+			status TEXT DEFAULT 'pending',
+			error_message TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
 
 		// Create indexes
@@ -289,6 +310,11 @@ func (db *DB) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_database_users_database_id ON database_users(database_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_email_accounts_user_id ON email_accounts(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_email_send_log_user_id ON email_send_log(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_email_send_log_sent_at ON email_send_log(sent_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_mail_queue_user_id ON mail_queue(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_mail_queue_status ON mail_queue(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_mail_queue_scheduled_at ON mail_queue(scheduled_at)`,
 	}
 
 	for _, migration := range migrations {
@@ -307,6 +333,10 @@ func (db *DB) migrate() error {
 	db.Exec(`ALTER TABLE packages ADD COLUMN max_php_memory TEXT DEFAULT '256M'`)
 	db.Exec(`ALTER TABLE packages ADD COLUMN max_php_upload TEXT DEFAULT '64M'`)
 	db.Exec(`ALTER TABLE packages ADD COLUMN max_php_execution_time INTEGER DEFAULT 300`)
+
+	// Add mail rate limit columns to packages
+	db.Exec(`ALTER TABLE packages ADD COLUMN max_emails_per_hour INTEGER DEFAULT 100`)
+	db.Exec(`ALTER TABLE packages ADD COLUMN max_emails_per_day INTEGER DEFAULT 500`)
 
 	// Create server_settings table for admin configuration
 	db.Exec(`CREATE TABLE IF NOT EXISTS server_settings (

@@ -163,6 +163,16 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Get("/server/queue", admin, h.GetTaskQueue)
 	protected.Post("/server/queue/flush", admin, h.FlushMailQueue)
 
+	// Mail Queue Management (admin only)
+	protected.Get("/mail-queue/stats", admin, h.GetMailQueueStats)
+	protected.Get("/mail-queue", admin, h.GetMailQueue)
+	protected.Delete("/mail-queue/:id", admin, h.DeleteMailQueueItem)
+	protected.Post("/mail-queue/:id/retry", admin, h.RetryMailQueueItem)
+	protected.Post("/mail-queue/clear", admin, h.ClearMailQueue)
+
+	// User Mail Stats (all users)
+	protected.Get("/email/my-stats", h.GetUserMailStats)
+
 	// Software Manager (admin only)
 	protected.Get("/software/overview", admin, h.GetSoftwareOverview)
 	protected.Post("/software/php/install", admin, h.InstallPHPVersion)

@@ -20,6 +20,8 @@ type Package struct {
 	MaxPHPMemory        string `json:"max_php_memory"`
 	MaxPHPUpload        string `json:"max_php_upload"`
 	MaxPHPExecutionTime int    `json:"max_php_execution_time"`
+	MaxEmailsPerHour    int    `json:"max_emails_per_hour"`
+	MaxEmailsPerDay     int    `json:"max_emails_per_day"`
 	CreatedAt           string `json:"created_at"`
 	UserCount           int    `json:"user_count,omitempty"`
 }
@@ -29,6 +31,7 @@ func (h *Handler) ListPackages(c *fiber.Ctx) error {
 		SELECT p.id, p.name, p.disk_quota, p.bandwidth_quota, p.max_domains, 
 		       p.max_databases, p.max_emails, p.max_ftp, 
 		       p.max_php_memory, p.max_php_upload, p.max_php_execution_time,
+		       COALESCE(p.max_emails_per_hour, 100), COALESCE(p.max_emails_per_day, 500),
 		       p.created_at,
 		       (SELECT COUNT(*) FROM user_packages WHERE package_id = p.id) as user_count
 		FROM packages p ORDER BY p.name
@@ -47,6 +50,7 @@ func (h *Handler) ListPackages(c *fiber.Ctx) error {
 		if err := rows.Scan(&p.ID, &p.Name, &p.DiskQuota, &p.BandwidthQuota, &p.MaxDomains,
 			&p.MaxDatabases, &p.MaxEmails, &p.MaxFTP,
 			&p.MaxPHPMemory, &p.MaxPHPUpload, &p.MaxPHPExecutionTime,
+			&p.MaxEmailsPerHour, &p.MaxEmailsPerDay,
 			&p.CreatedAt, &p.UserCount); err != nil {
 			continue
 		}
@@ -72,11 +76,14 @@ func (h *Handler) GetPackage(c *fiber.Ctx) error {
 	err = h.db.QueryRow(`
 		SELECT id, name, disk_quota, bandwidth_quota, max_domains, 
 		       max_databases, max_emails, max_ftp,
-		       max_php_memory, max_php_upload, max_php_execution_time, created_at
+		       max_php_memory, max_php_upload, max_php_execution_time,
+		       COALESCE(max_emails_per_hour, 100), COALESCE(max_emails_per_day, 500),
+		       created_at
 		FROM packages WHERE id = ?
 	`, id).Scan(&p.ID, &p.Name, &p.DiskQuota, &p.BandwidthQuota, &p.MaxDomains,
 		&p.MaxDatabases, &p.MaxEmails, &p.MaxFTP,
-		&p.MaxPHPMemory, &p.MaxPHPUpload, &p.MaxPHPExecutionTime, &p.CreatedAt)
+		&p.MaxPHPMemory, &p.MaxPHPUpload, &p.MaxPHPExecutionTime,
+		&p.MaxEmailsPerHour, &p.MaxEmailsPerDay, &p.CreatedAt)
 
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(models.APIResponse{
@@ -135,11 +142,17 @@ func (h *Handler) CreatePackage(c *fiber.Ctx) error {
 	if pkg.MaxPHPExecutionTime == 0 {
 		pkg.MaxPHPExecutionTime = 300
 	}
+	if pkg.MaxEmailsPerHour == 0 {
+		pkg.MaxEmailsPerHour = 100
+	}
+	if pkg.MaxEmailsPerDay == 0 {
+		pkg.MaxEmailsPerDay = 500
+	}
 
 	result, err := h.db.Exec(`
-		INSERT INTO packages (name, disk_quota, bandwidth_quota, max_domains, max_databases, max_emails, max_ftp, max_php_memory, max_php_upload, max_php_execution_time)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, pkg.Name, pkg.DiskQuota, pkg.BandwidthQuota, pkg.MaxDomains, pkg.MaxDatabases, pkg.MaxEmails, pkg.MaxFTP, pkg.MaxPHPMemory, pkg.MaxPHPUpload, pkg.MaxPHPExecutionTime)
+		INSERT INTO packages (name, disk_quota, bandwidth_quota, max_domains, max_databases, max_emails, max_ftp, max_php_memory, max_php_upload, max_php_execution_time, max_emails_per_hour, max_emails_per_day)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, pkg.Name, pkg.DiskQuota, pkg.BandwidthQuota, pkg.MaxDomains, pkg.MaxDatabases, pkg.MaxEmails, pkg.MaxFTP, pkg.MaxPHPMemory, pkg.MaxPHPUpload, pkg.MaxPHPExecutionTime, pkg.MaxEmailsPerHour, pkg.MaxEmailsPerDay)
 
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
@@ -177,9 +190,10 @@ func (h *Handler) UpdatePackage(c *fiber.Ctx) error {
 	_, err = h.db.Exec(`
 		UPDATE packages SET name = ?, disk_quota = ?, bandwidth_quota = ?, 
 		max_domains = ?, max_databases = ?, max_emails = ?, max_ftp = ?,
-		max_php_memory = ?, max_php_upload = ?, max_php_execution_time = ?
+		max_php_memory = ?, max_php_upload = ?, max_php_execution_time = ?,
+		max_emails_per_hour = ?, max_emails_per_day = ?
 		WHERE id = ?
-	`, pkg.Name, pkg.DiskQuota, pkg.BandwidthQuota, pkg.MaxDomains, pkg.MaxDatabases, pkg.MaxEmails, pkg.MaxFTP, pkg.MaxPHPMemory, pkg.MaxPHPUpload, pkg.MaxPHPExecutionTime, id)
+	`, pkg.Name, pkg.DiskQuota, pkg.BandwidthQuota, pkg.MaxDomains, pkg.MaxDatabases, pkg.MaxEmails, pkg.MaxFTP, pkg.MaxPHPMemory, pkg.MaxPHPUpload, pkg.MaxPHPExecutionTime, pkg.MaxEmailsPerHour, pkg.MaxEmailsPerDay, id)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{

@@ -36,6 +36,8 @@ interface PackageData {
   max_php_memory: string;
   max_php_upload: string;
   max_php_execution_time: number;
+  max_emails_per_hour: number;
+  max_emails_per_day: number;
   created_at: string;
   user_count: number;
 }
@@ -51,6 +53,8 @@ const defaultFormData = {
   max_php_memory: '256M',
   max_php_upload: '64M',
   max_php_execution_time: 300,
+  max_emails_per_hour: 100,
+  max_emails_per_day: 500,
 };
 
 export default function PackagesPage() {
@@ -155,6 +159,8 @@ export default function PackagesPage() {
       max_php_memory: pkg.max_php_memory,
       max_php_upload: pkg.max_php_upload,
       max_php_execution_time: pkg.max_php_execution_time,
+      max_emails_per_hour: pkg.max_emails_per_hour || 100,
+      max_emails_per_day: pkg.max_emails_per_day || 500,
     });
     setShowEditModal(true);
   };
@@ -335,6 +341,21 @@ export default function PackagesPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Mail Rate Limits */}
+                  <div className="pt-2 border-t border-border">
+                    <div className="text-xs text-muted-foreground mb-2">Mail Limitleri</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex items-center gap-1">
+                        <Mail className="w-3 h-3 text-pink-500" />
+                        <span>Saatlik: {pkg.max_emails_per_hour || 100}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Mail className="w-3 h-3 text-rose-500" />
+                        <span>Günlük: {pkg.max_emails_per_day || 500}</span>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -487,6 +508,38 @@ export default function PackagesPage() {
                       </select>
                     </div>
                   </div>
+                </div>
+
+                {/* Mail Rate Limits */}
+                <div className="pt-4 border-t border-border">
+                  <h3 className="text-sm font-medium mb-3">Mail Gönderim Limitleri</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Saatlik Limit</label>
+                      <input
+                        type="number"
+                        value={formData.max_emails_per_hour}
+                        onChange={(e) => setFormData({ ...formData, max_emails_per_hour: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        min={0}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Saatte gönderilebilecek maksimum mail sayısı</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Günlük Limit</label>
+                      <input
+                        type="number"
+                        value={formData.max_emails_per_day}
+                        onChange={(e) => setFormData({ ...formData, max_emails_per_day: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        min={0}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Günde gönderilebilecek maksimum mail sayısı</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3 p-2 bg-muted rounded">
+                    <strong>Not:</strong> Limit aşıldığında mailler otomatik olarak kuyruğa alınır ve sonraki saat/gün gönderilir.
+                  </p>
                 </div>
               </div>
               <div className="flex justify-end gap-2 p-4 border-t border-border">

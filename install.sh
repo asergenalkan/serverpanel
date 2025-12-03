@@ -1731,10 +1731,109 @@ CRONEOF
     log_info "Let's Encrypt: hazır ✓"
 }
 
+configure_mail_queue() {
+    log_step "Mail Queue Daemon Yapılandırılıyor"
+    
+    # Queue processor binary'si derleniyor
+    log_progress "Queue processor derleniyor"
+    if [[ -d "${INSTALL_DIR}/src" ]]; then
+        cd "${INSTALL_DIR}/src"
+        
+        # Queue processor derle
+        if [[ -d "cmd/queue-processor" ]]; then
+            go build -o "${INSTALL_DIR}/bin/queue-processor" ./cmd/queue-processor 2>/dev/null
+            if [[ -f "${INSTALL_DIR}/bin/queue-processor" ]]; then
+                chmod +x "${INSTALL_DIR}/bin/queue-processor"
+                log_done "Queue processor derlendi"
+            else
+                log_warn "Queue processor derlenemedi"
+            fi
+        fi
+        
+        # Policy daemon derle
+        if [[ -d "cmd/policy-daemon" ]]; then
+            go build -o "${INSTALL_DIR}/bin/policy-daemon" ./cmd/policy-daemon 2>/dev/null
+            if [[ -f "${INSTALL_DIR}/bin/policy-daemon" ]]; then
+                chmod +x "${INSTALL_DIR}/bin/policy-daemon"
+                log_done "Policy daemon derlendi"
+            else
+                log_warn "Policy daemon derlenemedi"
+            fi
+        fi
+    fi
+    
+    # Queue processor systemd service
+    log_progress "Queue processor servisi oluşturuluyor"
+    cat > /etc/systemd/system/serverpanel-queue.service << 'QUEUEEOF'
+[Unit]
+Description=ServerPanel Mail Queue Processor
+After=network.target serverpanel.service
+
+[Service]
+Type=simple
+ExecStart=/opt/serverpanel/bin/queue-processor
+Restart=always
+RestartSec=10
+User=root
+WorkingDirectory=/opt/serverpanel
+
+[Install]
+WantedBy=multi-user.target
+QUEUEEOF
+    
+    # Postfix policy service yapılandırması
+    log_progress "Postfix policy daemon yapılandırılıyor"
+    
+    # Postfix master.cf'e policy service ekle
+    if ! grep -q "policy.*spawn" /etc/postfix/master.cf 2>/dev/null; then
+        cat >> /etc/postfix/master.cf << 'POLICYEOF'
+
+# ServerPanel Rate Limiting Policy Daemon
+policy    unix  -       n       n       -       0       spawn
+  user=nobody argv=/opt/serverpanel/bin/policy-daemon
+POLICYEOF
+        log_done "Policy daemon Postfix'e eklendi"
+    fi
+    
+    # Postfix main.cf'e policy check ekle
+    if ! grep -q "check_policy_service" /etc/postfix/main.cf 2>/dev/null; then
+        # Mevcut smtpd_recipient_restrictions'ı al ve policy ekle
+        local current_restrictions=$(postconf -h smtpd_recipient_restrictions 2>/dev/null)
+        if [[ -n "$current_restrictions" ]]; then
+            postconf -e "smtpd_recipient_restrictions = $current_restrictions, check_policy_service unix:private/policy"
+        else
+            postconf -e "smtpd_recipient_restrictions = permit_mynetworks, permit_sasl_authenticated, check_policy_service unix:private/policy, reject_unauth_destination"
+        fi
+        log_done "Policy check Postfix'e eklendi"
+    fi
+    
+    # Log dizini oluştur
+    mkdir -p /var/log/serverpanel
+    chmod 755 /var/log/serverpanel
+    
+    # Servisleri başlat
+    systemctl daemon-reload > /dev/null 2>&1
+    
+    if [[ -f "${INSTALL_DIR}/bin/queue-processor" ]]; then
+        systemctl enable serverpanel-queue > /dev/null 2>&1
+        systemctl start serverpanel-queue > /dev/null 2>&1
+        
+        if systemctl is-active --quiet serverpanel-queue; then
+            log_info "Queue processor: aktif ✓"
+        else
+            log_warn "Queue processor başlatılamadı"
+        fi
+    fi
+    
+    # Postfix'i yeniden başlat
+    systemctl restart postfix > /dev/null 2>&1
+    log_done "Mail queue daemon yapılandırıldı"
+}
+
 health_check() {
     log_step "Sistem Sağlık Kontrolü"
     
-    local services=("mysql" "apache2" "php${PHP_VERSION}-fpm" "bind9" "pure-ftpd" "postfix" "dovecot" "opendkim" "spamassassin" "serverpanel")
+    local services=("mysql" "apache2" "php${PHP_VERSION}-fpm" "bind9" "pure-ftpd" "postfix" "dovecot" "opendkim" "spamassassin" "serverpanel" "serverpanel-queue")
     for svc in "${services[@]}"; do
         if systemctl is-active --quiet "$svc"; then
             log_info "$svc: aktif ✓"
@@ -1836,6 +1935,7 @@ main() {
     migrate_database
     create_service
     configure_ssl
+    configure_mail_queue
     health_check
     
     print_summary

@@ -13,7 +13,7 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 | Kullanıcı Yönetimi | ✅ | ✅ CRUD + Paket atama | %75 |
 | Domain Yönetimi | ✅ | ✅ Domain + Subdomain + Silme seçenekleri | %95 |
 | DNS Yönetimi | ✅ | ✅ BIND9 Zone Editor + SPF/DMARC | %95 |
-| **E-posta Yönetimi** | ✅ | ✅ **Postfix + Dovecot + Roundcube + DKIM** | **%85** |
+| **E-posta Yönetimi** | ✅ | ✅ **Postfix + Dovecot + Roundcube + DKIM + Rate Limiting** | **%95** |
 | Veritabanı Yönetimi | ✅ | ✅ phpMyAdmin SSO | %85 |
 | Dosya Yönetimi | ✅ | ✅ Tam fonksiyonel | %95 |
 | FTP Yönetimi | ✅ | ✅ Pure-FTPd | %90 |
@@ -28,6 +28,14 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 | **Kurulum Scripti** | ✅ | ✅ Tam otomatik + Migration + Mail + MultiPHP | %98 |
 
 ### 🆕 Son Eklenen Özellikler (3 Aralık 2025)
+- ✅ **Mail Rate Limiting & Kuyruk Sistemi** (YENİ!)
+  - Hesap bazlı saatlik/günlük mail limiti
+  - Paket bazlı limit tanımlama (Admin)
+  - Postfix Policy Daemon entegrasyonu
+  - Limit aşıldığında otomatik kuyruğa alma
+  - Kuyruk yönetimi (silme, yeniden deneme, temizleme)
+  - Kullanıcı mail istatistikleri görüntüleme
+  - Queue Processor daemon (otomatik gönderim)
 - ✅ **Yazılım Yöneticisi** (Admin Panel)
   - PHP sürümleri kurma/kaldırma (7.4, 8.0, 8.1, 8.2, 8.3)
   - PHP eklentileri kurma/kaldırma
@@ -50,7 +58,7 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
   - Sunucu Bilgileri
   - Günlük İşlem Günlüğü
   - Top Processes
-  - Task Queue
+  - Task Queue (Postfix + Rate Limit Kuyruğu + Kullanıcı İstatistikleri)
 
 ### Önceki Özellikler
 - ✅ **Tam Mail Sistemi** (Postfix + Dovecot + Roundcube)
@@ -61,7 +69,6 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 - ✅ **ClamAV** (virüs tarama)
 - ✅ **webmail.domain.com** subdomain desteği
 - ✅ **SSL Otomatik Vhost** (webmail, mail, ftp, www için)
-- ✅ **Rate Limiting** (saatte 100 mail)
 - ✅ Subdomain SSL sertifikası alma (her FQDN için ayrı)
 - ✅ SSL Status sayfası (cPanel benzeri tablo görünümü)
 - ✅ Domain/Subdomain silme sırasında dosya silme seçeneği
