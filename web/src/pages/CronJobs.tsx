@@ -51,10 +51,23 @@ interface CronPreset {
   weekday: string;
 }
 
+// Static presets - no need to fetch from API
+const CRON_PRESETS: CronPreset[] = [
+  { key: 'every_minute', label: 'Her dakika', minute: '*', hour: '*', day: '*', month: '*', weekday: '*' },
+  { key: 'every_5_minutes', label: 'Her 5 dakika', minute: '*/5', hour: '*', day: '*', month: '*', weekday: '*' },
+  { key: 'every_15_minutes', label: 'Her 15 dakika', minute: '*/15', hour: '*', day: '*', month: '*', weekday: '*' },
+  { key: 'every_30_minutes', label: 'Her 30 dakika', minute: '*/30', hour: '*', day: '*', month: '*', weekday: '*' },
+  { key: 'hourly', label: 'Saatlik', minute: '0', hour: '*', day: '*', month: '*', weekday: '*' },
+  { key: 'daily', label: 'Günlük (gece yarısı)', minute: '0', hour: '0', day: '*', month: '*', weekday: '*' },
+  { key: 'weekly', label: 'Haftalık (Pazar)', minute: '0', hour: '0', day: '*', month: '*', weekday: '0' },
+  { key: 'monthly', label: 'Aylık (ayın 1\'i)', minute: '0', hour: '0', day: '1', month: '*', weekday: '*' },
+  { key: 'custom', label: 'Özel', minute: '*', hour: '*', day: '*', month: '*', weekday: '*' },
+];
+
 export default function CronJobs() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<CronJob[]>([]);
-  const [presets, setPresets] = useState<CronPreset[]>([]);
+  const presets = CRON_PRESETS;
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showOutputModal, setShowOutputModal] = useState(false);
@@ -77,7 +90,6 @@ export default function CronJobs() {
 
   useEffect(() => {
     fetchJobs();
-    fetchPresets();
   }, []);
 
   const fetchJobs = async () => {
@@ -93,16 +105,6 @@ export default function CronJobs() {
     }
   };
 
-  const fetchPresets = async () => {
-    try {
-      const response = await axios.get('/api/v1/cron/presets');
-      if (response.data.success) {
-        setPresets(response.data.data || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch presets:', err);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,6 +210,11 @@ export default function CronJobs() {
         day: preset.day,
         month: preset.month,
         weekday: preset.weekday,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        schedule: presetKey,
       });
     }
   };
