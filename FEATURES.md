@@ -4,7 +4,7 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 
 ---
 
-## 📊 Mevcut Durum Özeti (Son Güncelleme: 3 Aralık 2025)
+## 📊 Mevcut Durum Özeti (Son Güncelleme: 5 Aralık 2025)
 
 | Kategori | cPanel/WHM | ServerPanel | Tamamlanma |
 |----------|------------|-------------|------------|
@@ -22,13 +22,24 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 | **Sunucu Yönetimi** | ✅ | ✅ **Sunucu Durumu + Yazılım Yöneticisi + Sistem Sağlığı** | **%95** |
 | Backup | ✅ | ❌ | %0 |
 | **Cron Jobs** | ✅ | ✅ **Tam fonksiyonel** | **%95** |
-| **Güvenlik** | ✅ | ✅ **SpamAssassin + ClamAV + Spam Filtreleri UI** | **%60** |
+| **Güvenlik** | ✅ | ✅ **Fail2ban + UFW Firewall + SSH Key Yönetimi + Spam Filtreleri** | **%85** |
 | Metrics/Logs | ✅ | ⚠️ Temel | %15 |
 | Reseller Sistemi | ✅ | ⚠️ Rol var | %10 |
 | **Kurulum Scripti** | ✅ | ✅ Tam otomatik + Migration + Mail + MultiPHP | %98 |
 | **UI/UX** | ✅ | ✅ **Lottie Loading Animasyonları + Tema Uyumu** | **%90** |
 
-### 🆕 Son Eklenen Özellikler (3 Aralık 2025)
+### 🆕 Son Eklenen Özellikler (5 Aralık 2025)
+- ✅ **Güvenlik Bölümü** (YENİ!)
+  - Fail2ban Yönetimi (jail'ler, ban/unban IP, whitelist)
+  - UFW Firewall Yönetimi (kurallar, varsayılan portlar, güvenli etkinleştirme)
+  - SSH Güvenliği (port, root login, şifre/key authentication ayarları)
+  - SSH Key Yönetimi (ED25519 key oluşturma, key ekleme/silme, fingerprint)
+  - Güvenlik uyarıları (şifre kapatma, root kapatma için onay modalları)
+- ✅ **Yazılım Yöneticisi Fail2ban Entegrasyonu**
+  - Kurulumda otomatik jail yapılandırması (SSH, Apache, Postfix, Dovecot, FTP)
+  - Log dosyaları otomatik oluşturma
+
+### Önceki Özellikler (3 Aralık 2025)
 - ✅ **Sistem Sağlığı Bölümü** (YENİ!)
   - Arka Plan İşlem Sonlandırıcı (tehlikeli işlemler, güvenilir kullanıcılar)
   - İşlem Yöneticisi (CPU/Memory kullanımı, kill, kullanıcı filtreleme)
@@ -87,7 +98,6 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
   - Top Processes
   - Task Queue (Postfix + Rate Limit Kuyruğu + Kullanıcı İstatistikleri)
 
-### Önceki Özellikler
 - ✅ **Tam Mail Sistemi** (Postfix + Dovecot + Roundcube)
 - ✅ **DKIM Otomatik Kurulum** (hesap oluşturulduğunda)
 - ✅ **SPF/DMARC DNS Kayıtları** (otomatik eklenir)
@@ -555,11 +565,35 @@ Henüz yok
   - Durum görüntüleme
   - İstatistikler
 
+### Yeni Eklenen ✅
+- [x] **Fail2ban Yönetimi**
+  - Servis durumu görüntüleme
+  - Jail listesi ve istatistikleri
+  - IP ban/unban
+  - Jail ayarları (bantime, findtime, maxretry)
+  - Whitelist yönetimi
+- [x] **UFW Firewall Yönetimi**
+  - Firewall durumu görüntüleme
+  - Kural ekleme/silme
+  - Varsayılan portlar (SSH, HTTP, HTTPS, Panel, FTP, Mail, DNS, MySQL)
+  - Güvenli etkinleştirme (portlar önce açılır)
+- [x] **SSH Güvenliği**
+  - SSH port değiştirme
+  - Root login ayarları (izin ver, sadece key ile, yasakla)
+  - Şifre/Key authentication ayarları
+  - Max deneme sayısı ve giriş süresi
+  - Güvenlik puanı hesaplama
+- [x] **SSH Key Yönetimi**
+  - ED25519 key çifti oluşturma
+  - Private key tek seferlik indirme (sunucuda saklanmaz)
+  - Mevcut public key ekleme
+  - Key listeleme (fingerprint ile)
+  - Key silme
+- [x] **Güvenlik Uyarıları**
+  - Şifre girişi kapatılırken SSH key kontrolü
+  - Root girişi kapatılırken onay modalı
+
 ### Eksik Özellikler
-- [ ] **IP Blocker**
-  - Manuel IP engelleme
-  - CIDR desteği
-  - Otomatik engelleme
 - [ ] **ModSecurity**
   - WAF aktivasyonu
   - Kural yönetimi
@@ -567,15 +601,8 @@ Henüz yok
 - [ ] **Imunify360/ClamAV**
   - Malware tarama
   - Otomatik temizleme
-- [ ] **SSH Access**
-  - SSH key yönetimi
-  - Shell değiştirme
 - [ ] **Leech Protection**
   - Şifre sızıntı koruması
-- [ ] **Firewall Yönetimi**
-  - CSF/iptables entegrasyonu
-  - Port yönetimi
-  - Rate limiting
 
 ---
 

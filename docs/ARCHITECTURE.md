@@ -2,7 +2,7 @@
 
 ## Mevcut Durum vs Hedef
 
-### ✅ Mevcut (ÇALIŞIYOR!) - Son Güncelleme: 3 Aralık 2025
+### ✅ Mevcut (ÇALIŞIYOR!) - Son Güncelleme: 5 Aralık 2025
 ```
 Admin giriş yapar
 ├── Hesap oluşturur → ✅ Gerçekten oluşur!
@@ -120,6 +120,29 @@ Admin giriş yapar
 │   ├── ClamAV antivirüs durumu görüntüleme
 │   ├── Whitelist/Blacklist yönetimi
 │   └── Veritabanı güncelleme tetikleme
+│
+├── Güvenlik Yönetimi → ✅ Tam fonksiyonel!
+│   ├── Fail2ban Yönetimi
+│   │   ├── Servis durumu ve jail listesi
+│   │   ├── IP ban/unban
+│   │   ├── Jail ayarları (bantime, findtime, maxretry)
+│   │   └── Whitelist yönetimi
+│   ├── UFW Firewall Yönetimi
+│   │   ├── Firewall durumu görüntüleme
+│   │   ├── Kural ekleme/silme
+│   │   ├── Varsayılan portlar otomatik açılır
+│   │   └── Güvenli etkinleştirme (kilitlenme önleme)
+│   ├── SSH Güvenliği
+│   │   ├── SSH port değiştirme
+│   │   ├── Root login ayarları
+│   │   ├── Şifre/Key authentication
+│   │   └── Güvenlik puanı hesaplama
+│   └── SSH Key Yönetimi
+│       ├── ED25519 key çifti oluşturma
+│       ├── Private key tek seferlik indirme
+│       ├── Mevcut public key ekleme
+│       ├── Key listeleme (fingerprint)
+│       └── Key silme
 │
 ├── Cron Jobs → ✅ Tam fonksiyonel!
 │   ├── Cron işi oluşturma/düzenleme/silme
@@ -390,7 +413,8 @@ func sanitizePath(path string) string {
 7. [x] E-posta yönetimi (Postfix + Dovecot + Roundcube) ✅
 8. [x] Spam Filtreleri (SpamAssassin + ClamAV) ✅
 9. [x] Cron Jobs ✅
-10. [ ] Backup
+10. [x] Güvenlik Yönetimi (Fail2ban + UFW + SSH) ✅
+11. [ ] Backup
 
 ### ✅ UI/UX İyileştirmeleri (TAMAMLANDI!)
 1. [x] Merkezi tema renk sistemi (CSS variables)
