@@ -273,6 +273,10 @@ install_packages() {
     log_progress "Fail2ban kuruluyor"
     DEBIAN_FRONTEND=noninteractive apt-get install -y fail2ban > /dev/null 2>&1
     if command -v fail2ban-client &> /dev/null; then
+        # Log dosyalarının var olduğundan emin ol
+        touch /var/log/mail.log /var/log/auth.log
+        mkdir -p /var/log/apache2
+        touch /var/log/apache2/error.log /var/log/apache2/access.log
         # Varsayılan jail yapılandırması
         cat > /etc/fail2ban/jail.local << 'FAIL2BAN_EOF'
 [DEFAULT]
