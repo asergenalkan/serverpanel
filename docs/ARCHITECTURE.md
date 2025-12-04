@@ -137,12 +137,20 @@ Admin giriş yapar
 │   │   ├── Root login ayarları
 │   │   ├── Şifre/Key authentication
 │   │   └── Güvenlik puanı hesaplama
-│   └── SSH Key Yönetimi
-│       ├── ED25519 key çifti oluşturma
-│       ├── Private key tek seferlik indirme
-│       ├── Mevcut public key ekleme
-│       ├── Key listeleme (fingerprint)
-│       └── Key silme
+│   ├── SSH Key Yönetimi
+│   │   ├── ED25519 key çifti oluşturma
+│   │   ├── Private key tek seferlik indirme
+│   │   ├── Mevcut public key ekleme
+│   │   ├── Key listeleme (fingerprint)
+│   │   └── Key silme
+│   └── Malware Tarama (ClamAV)
+│       ├── Arka planda tarama (sayfa kapatılabilir)
+│       ├── Canlı ilerleme gösterimi (progress bar)
+│       ├── Taranan dosya adı gösterimi
+│       ├── Hızlı/Tam tarama seçenekleri
+│       ├── Tarama iptali
+│       ├── Tehdit tespiti ve karantina
+│       └── Tarama geçmişi (veritabanında)
 │
 ├── Cron Jobs → ✅ Tam fonksiyonel!
 │   ├── Cron işi oluşturma/düzenleme/silme
