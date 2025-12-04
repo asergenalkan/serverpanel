@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, AlertTriangle, CheckCircle, XCircle, RefreshCw, Trash2, Plus, Activity, FileText, Settings, List, Clock, Globe } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, XCircle, RefreshCw, Trash2, Plus, Activity, FileText, Settings, List, Clock, Globe, Puzzle } from 'lucide-react';
 import Layout from '../../components/Layout';
 import LoadingAnimation from '../../components/LoadingAnimation';
 
@@ -32,6 +32,13 @@ interface ModSecurityStats {
   top_ips: { ip: string; count: number }[];
 }
 
+interface CMSExclusion {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+}
+
 const ModSecurityPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<ModSecurityStatus | null>(null);
@@ -40,9 +47,13 @@ const ModSecurityPage: React.FC = () => {
   const [whitelist, setWhitelist] = useState<{ ip: string; comment: string }[]>([]);
   const [rules, setRules] = useState<any[]>([]);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'whitelist'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'whitelist' | 'exclusions'>('overview');
   const [newWhitelistIP, setNewWhitelistIP] = useState('');
   const [newWhitelistComment, setNewWhitelistComment] = useState('');
+  const [cmsExclusions, setCmsExclusions] = useState<CMSExclusion[]>([]);
+  const [disabledRules, setDisabledRules] = useState<string[]>([]);
+  const [newDisableRuleId, setNewDisableRuleId] = useState('');
+  const [newDisableRuleComment, setNewDisableRuleComment] = useState('');
 
   useEffect(() => {
     fetchStatus();
@@ -55,6 +66,9 @@ const ModSecurityPage: React.FC = () => {
       fetchWhitelist();
     } else if (activeTab === 'rules') {
       fetchRules();
+    } else if (activeTab === 'exclusions') {
+      fetchCMSExclusions();
+      fetchDisabledRules();
     }
   }, [activeTab]);
 
@@ -272,6 +286,117 @@ const ModSecurityPage: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // CMS Exclusions functions
+  const fetchCMSExclusions = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/v1/security/modsecurity/cms-exclusions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCmsExclusions(data.data || []);
+      }
+    } catch (error) {
+      console.error('CMS exclusions alınamadı:', error);
+    }
+  };
+
+  const toggleCMSExclusion = async (cms: string, enabled: boolean) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/v1/security/modsecurity/cms-exclusions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ cms, enabled })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessage({ type: 'success', text: data.message });
+        fetchCMSExclusions();
+      } else {
+        const data = await response.json();
+        setMessage({ type: 'error', text: data.error || 'İşlem başarısız' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Bağlantı hatası' });
+    }
+  };
+
+  // Disabled Rules functions
+  const fetchDisabledRules = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/v1/security/modsecurity/disabled-rules', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDisabledRules(data.data?.rules || []);
+      }
+    } catch (error) {
+      console.error('Disabled rules alınamadı:', error);
+    }
+  };
+
+  const disableRule = async () => {
+    if (!newDisableRuleId) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/v1/security/modsecurity/disable-rule', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ rule_id: newDisableRuleId, comment: newDisableRuleComment })
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: `Kural ${newDisableRuleId} devre dışı bırakıldı` });
+        setNewDisableRuleId('');
+        setNewDisableRuleComment('');
+        fetchDisabledRules();
+      } else {
+        const data = await response.json();
+        setMessage({ type: 'error', text: data.error || 'İşlem başarısız' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Bağlantı hatası' });
+    }
+  };
+
+  const enableRule = async (ruleId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/v1/security/modsecurity/enable-rule', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ rule_id: ruleId })
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: `Kural ${ruleId} yeniden etkinleştirildi` });
+        fetchDisabledRules();
+      } else {
+        const data = await response.json();
+        setMessage({ type: 'error', text: data.error || 'İşlem başarısız' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Bağlantı hatası' });
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -395,6 +520,7 @@ const ModSecurityPage: React.FC = () => {
               <nav className="flex -mb-px">
                 {[
                   { id: 'overview', label: 'Genel Bakış', icon: Settings },
+                  { id: 'exclusions', label: 'CMS Exclusions', icon: Puzzle },
                   { id: 'rules', label: 'Kurallar', icon: List },
                   { id: 'logs', label: 'Audit Log', icon: FileText },
                   { id: 'whitelist', label: 'Whitelist', icon: CheckCircle }
@@ -668,6 +794,116 @@ const ModSecurityPage: React.FC = () => {
                       </table>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* CMS Exclusions Tab */}
+              {activeTab === 'exclusions' && (
+                <div className="space-y-6">
+                  {/* CMS Presets */}
+                  <div>
+                    <h3 className="font-medium mb-3 flex items-center">
+                      <Puzzle className="w-5 h-5 mr-2 text-purple-500" />
+                      CMS Exclusion Kuralları
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Popüler CMS'ler için hazır exclusion kuralları. Bu kurallar, CMS admin panellerinin ModSecurity tarafından yanlışlıkla engellenmesini önler.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {cmsExclusions.map(cms => (
+                        <div key={cms.id} className={`p-4 rounded-lg border ${cms.enabled ? 'border-green-500 bg-green-500/5' : 'border-border'}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium">{cms.name}</h4>
+                            <button
+                              onClick={() => toggleCMSExclusion(cms.id, !cms.enabled)}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                cms.enabled ? 'bg-green-500' : 'bg-muted'
+                              }`}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                cms.enabled ? 'translate-x-6' : 'translate-x-1'
+                              }`} />
+                            </button>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{cms.description}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {cmsExclusions.length === 0 && (
+                      <div className="p-8 text-center text-muted-foreground">
+                        <Puzzle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>CMS exclusion kuralları yükleniyor...</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Manual Rule Disable */}
+                  <div className="border-t border-border pt-6">
+                    <h3 className="font-medium mb-3 flex items-center">
+                      <XCircle className="w-5 h-5 mr-2 text-red-500" />
+                      Manuel Kural Devre Dışı Bırakma
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Yanlış pozitif veren kuralları ID numarasıyla devre dışı bırakabilirsiniz. Kural ID'sini Audit Log'dan bulabilirsiniz.
+                    </p>
+
+                    {/* Add Rule Form */}
+                    <div className="flex items-center space-x-2 mb-4">
+                      <input
+                        type="text"
+                        value={newDisableRuleId}
+                        onChange={(e) => setNewDisableRuleId(e.target.value)}
+                        placeholder="Kural ID (örn: 941100)"
+                        className="w-40 px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                      <input
+                        type="text"
+                        value={newDisableRuleComment}
+                        onChange={(e) => setNewDisableRuleComment(e.target.value)}
+                        placeholder="Açıklama (opsiyonel)"
+                        className="flex-1 px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                      <button
+                        onClick={disableRule}
+                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center space-x-2"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>Devre Dışı Bırak</span>
+                      </button>
+                    </div>
+
+                    {/* Disabled Rules List */}
+                    {disabledRules.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-muted-foreground">Devre Dışı Kurallar:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {disabledRules.map(ruleId => (
+                            <div key={ruleId} className="flex items-center space-x-2 px-3 py-1 bg-red-500/10 text-red-500 rounded-full">
+                              <span className="font-mono text-sm">{ruleId}</span>
+                              <button
+                                onClick={() => enableRule(ruleId)}
+                                className="hover:text-red-700"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <h4 className="font-medium text-blue-500 mb-2">💡 İpucu</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• WordPress kullanıyorsanız, WordPress exclusion'ını aktif edin</li>
+                      <li>• Yanlış pozitif alıyorsanız, Audit Log'dan kural ID'sini bulup devre dışı bırakın</li>
+                      <li>• Exclusion kuralları sadece belirli URL'ler için geçerlidir, tüm siteyi etkilemez</li>
+                    </ul>
+                  </div>
                 </div>
               )}
 

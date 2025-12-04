@@ -270,6 +270,13 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Get("/security/modsecurity/whitelist", admin, h.GetModSecurityWhitelist)
 	protected.Post("/security/modsecurity/whitelist", admin, h.AddModSecurityWhitelist)
 	protected.Delete("/security/modsecurity/whitelist", admin, h.RemoveModSecurityWhitelist)
+	// ModSecurity Rule Management
+	protected.Get("/security/modsecurity/disabled-rules", admin, h.GetDisabledRules)
+	protected.Post("/security/modsecurity/disable-rule", admin, h.DisableRule)
+	protected.Post("/security/modsecurity/enable-rule", admin, h.EnableRule)
+	// CMS Exclusions
+	protected.Get("/security/modsecurity/cms-exclusions", admin, h.GetCMSExclusions)
+	protected.Post("/security/modsecurity/cms-exclusions", admin, h.ToggleCMSExclusion)
 
 	// Note: WebSocket route is defined in main.go to avoid SPA fallback conflict
 }

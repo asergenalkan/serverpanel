@@ -525,11 +525,6 @@ func (h *Handler) GetModSecurityStats(c *fiber.Ctx) error {
 	}
 
 	// Convert maps to sorted slices
-	type countItem struct {
-		Key   string
-		Count int
-	}
-
 	var topRules []fiber.Map
 	for id, count := range ruleCount {
 		topRules = append(topRules, fiber.Map{"rule_id": id, "count": count})
@@ -759,5 +754,340 @@ func (h *Handler) RemoveModSecurityWhitelist(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "IP whitelist'ten kaldırıldı: " + input.IP,
+	})
+}
+
+// CMS Exclusion presets
+var cmsExclusions = map[string]struct {
+	Name        string
+	Description string
+	Rules       []string
+}{
+	"wordpress": {
+		Name:        "WordPress",
+		Description: "WordPress admin paneli ve eklentileri için exclusion kuralları",
+		Rules: []string{
+			"# WordPress Exclusions",
+			"SecRule REQUEST_URI \"@beginsWith /wp-admin/\" \"id:1100001,phase:1,pass,nolog,ctl:ruleRemoveById=941100-941999\"",
+			"SecRule REQUEST_URI \"@beginsWith /wp-admin/\" \"id:1100002,phase:1,pass,nolog,ctl:ruleRemoveById=942100-942999\"",
+			"SecRule REQUEST_URI \"@contains /wp-json/\" \"id:1100003,phase:1,pass,nolog,ctl:ruleRemoveById=941100-941999\"",
+			"SecRule REQUEST_URI \"@contains /wp-json/\" \"id:1100004,phase:1,pass,nolog,ctl:ruleRemoveById=942100-942999\"",
+			"SecRule REQUEST_URI \"@endsWith /xmlrpc.php\" \"id:1100005,phase:1,pass,nolog,ctl:ruleRemoveById=941100-941999\"",
+			"SecRule REQUEST_URI \"@contains /wp-content/plugins/\" \"id:1100006,phase:1,pass,nolog,ctl:ruleRemoveById=941100-941999\"",
+		},
+	},
+	"joomla": {
+		Name:        "Joomla",
+		Description: "Joomla admin paneli için exclusion kuralları",
+		Rules: []string{
+			"# Joomla Exclusions",
+			"SecRule REQUEST_URI \"@beginsWith /administrator/\" \"id:1100101,phase:1,pass,nolog,ctl:ruleRemoveById=941100-941999\"",
+			"SecRule REQUEST_URI \"@beginsWith /administrator/\" \"id:1100102,phase:1,pass,nolog,ctl:ruleRemoveById=942100-942999\"",
+			"SecRule REQUEST_URI \"@contains /api/\" \"id:1100103,phase:1,pass,nolog,ctl:ruleRemoveById=941100-941999\"",
+		},
+	},
+	"drupal": {
+		Name:        "Drupal",
+		Description: "Drupal admin paneli için exclusion kuralları",
+		Rules: []string{
+			"# Drupal Exclusions",
+			"SecRule REQUEST_URI \"@beginsWith /admin/\" \"id:1100201,phase:1,pass,nolog,ctl:ruleRemoveById=941100-941999\"",
+			"SecRule REQUEST_URI \"@beginsWith /admin/\" \"id:1100202,phase:1,pass,nolog,ctl:ruleRemoveById=942100-942999\"",
+			"SecRule REQUEST_URI \"@contains /jsonapi/\" \"id:1100203,phase:1,pass,nolog,ctl:ruleRemoveById=941100-941999\"",
+		},
+	},
+	"prestashop": {
+		Name:        "PrestaShop",
+		Description: "PrestaShop admin paneli için exclusion kuralları",
+		Rules: []string{
+			"# PrestaShop Exclusions",
+			"SecRule REQUEST_URI \"@contains /admin\" \"id:1100301,phase:1,pass,nolog,ctl:ruleRemoveById=941100-941999\"",
+			"SecRule REQUEST_URI \"@contains /admin\" \"id:1100302,phase:1,pass,nolog,ctl:ruleRemoveById=942100-942999\"",
+		},
+	},
+	"magento": {
+		Name:        "Magento",
+		Description: "Magento admin paneli için exclusion kuralları",
+		Rules: []string{
+			"# Magento Exclusions",
+			"SecRule REQUEST_URI \"@contains /admin\" \"id:1100401,phase:1,pass,nolog,ctl:ruleRemoveById=941100-941999\"",
+			"SecRule REQUEST_URI \"@contains /admin\" \"id:1100402,phase:1,pass,nolog,ctl:ruleRemoveById=942100-942999\"",
+			"SecRule REQUEST_URI \"@contains /rest/\" \"id:1100403,phase:1,pass,nolog,ctl:ruleRemoveById=941100-941999\"",
+		},
+	},
+}
+
+// GetDisabledRules returns list of disabled rules (admin only)
+func (h *Handler) GetDisabledRules(c *fiber.Ctx) error {
+	role := c.Locals("role").(string)
+	if role != "admin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Yetkiniz yok"})
+	}
+
+	disabledPath := "/etc/modsecurity/disabled-rules.conf"
+
+	content, err := os.ReadFile(disabledPath)
+	if err != nil {
+		return c.JSON(fiber.Map{
+			"success": true,
+			"data": fiber.Map{
+				"rules":      []string{},
+				"exclusions": []string{},
+			},
+		})
+	}
+
+	var disabledRules []string
+	var enabledExclusions []string
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// Check for disabled rule IDs
+		if strings.Contains(line, "SecRuleRemoveById") {
+			re := regexp.MustCompile(`SecRuleRemoveById\s+(\d+)`)
+			if matches := re.FindStringSubmatch(line); len(matches) > 1 {
+				disabledRules = append(disabledRules, matches[1])
+			}
+		}
+
+		// Check for CMS exclusions
+		for cms := range cmsExclusions {
+			if strings.Contains(line, "# "+cmsExclusions[cms].Name+" Exclusions") {
+				enabledExclusions = append(enabledExclusions, cms)
+				break
+			}
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"rules":      disabledRules,
+			"exclusions": enabledExclusions,
+		},
+	})
+}
+
+// DisableRule disables a specific rule by ID (admin only)
+func (h *Handler) DisableRule(c *fiber.Ctx) error {
+	role := c.Locals("role").(string)
+	if role != "admin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Yetkiniz yok"})
+	}
+
+	var input struct {
+		RuleID  string `json:"rule_id"`
+		Comment string `json:"comment"`
+	}
+
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Geçersiz veri"})
+	}
+
+	if input.RuleID == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Kural ID gerekli"})
+	}
+
+	disabledPath := "/etc/modsecurity/disabled-rules.conf"
+
+	// Check if rule already disabled
+	if content, err := os.ReadFile(disabledPath); err == nil {
+		if strings.Contains(string(content), "SecRuleRemoveById "+input.RuleID) {
+			return c.Status(400).JSON(fiber.Map{"error": "Bu kural zaten devre dışı"})
+		}
+	}
+
+	// Add rule to disabled list
+	f, err := os.OpenFile(disabledPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Dosya açılamadı"})
+	}
+	defer f.Close()
+
+	comment := input.Comment
+	if comment == "" {
+		comment = "Disabled via panel"
+	}
+
+	rule := "\n# " + comment + " - " + time.Now().Format("2006-01-02 15:04:05") + "\n"
+	rule += "SecRuleRemoveById " + input.RuleID + "\n"
+
+	if _, err := f.WriteString(rule); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Kural yazılamadı"})
+	}
+
+	// Restart Apache
+	exec.Command("systemctl", "restart", "apache2").Run()
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Kural devre dışı bırakıldı: " + input.RuleID,
+	})
+}
+
+// EnableRule re-enables a disabled rule (admin only)
+func (h *Handler) EnableRule(c *fiber.Ctx) error {
+	role := c.Locals("role").(string)
+	if role != "admin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Yetkiniz yok"})
+	}
+
+	var input struct {
+		RuleID string `json:"rule_id"`
+	}
+
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Geçersiz veri"})
+	}
+
+	disabledPath := "/etc/modsecurity/disabled-rules.conf"
+
+	content, err := os.ReadFile(disabledPath)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Dosya okunamadı"})
+	}
+
+	lines := strings.Split(string(content), "\n")
+	var newLines []string
+
+	for _, line := range lines {
+		if strings.Contains(line, "SecRuleRemoveById "+input.RuleID) {
+			// Skip this line and the comment before it
+			if len(newLines) > 0 && strings.HasPrefix(newLines[len(newLines)-1], "#") {
+				newLines = newLines[:len(newLines)-1]
+			}
+			continue
+		}
+		newLines = append(newLines, line)
+	}
+
+	if err := os.WriteFile(disabledPath, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Dosya yazılamadı"})
+	}
+
+	// Restart Apache
+	exec.Command("systemctl", "restart", "apache2").Run()
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Kural yeniden etkinleştirildi: " + input.RuleID,
+	})
+}
+
+// GetCMSExclusions returns available CMS exclusion presets (admin only)
+func (h *Handler) GetCMSExclusions(c *fiber.Ctx) error {
+	role := c.Locals("role").(string)
+	if role != "admin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Yetkiniz yok"})
+	}
+
+	// Check which exclusions are enabled
+	disabledPath := "/etc/modsecurity/disabled-rules.conf"
+	content, _ := os.ReadFile(disabledPath)
+	contentStr := string(content)
+
+	var presets []fiber.Map
+	for key, cms := range cmsExclusions {
+		enabled := strings.Contains(contentStr, "# "+cms.Name+" Exclusions")
+		presets = append(presets, fiber.Map{
+			"id":          key,
+			"name":        cms.Name,
+			"description": cms.Description,
+			"enabled":     enabled,
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    presets,
+	})
+}
+
+// ToggleCMSExclusion enables/disables CMS exclusion preset (admin only)
+func (h *Handler) ToggleCMSExclusion(c *fiber.Ctx) error {
+	role := c.Locals("role").(string)
+	if role != "admin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Yetkiniz yok"})
+	}
+
+	var input struct {
+		CMS     string `json:"cms"`
+		Enabled bool   `json:"enabled"`
+	}
+
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Geçersiz veri"})
+	}
+
+	cms, exists := cmsExclusions[input.CMS]
+	if !exists {
+		return c.Status(400).JSON(fiber.Map{"error": "Geçersiz CMS"})
+	}
+
+	disabledPath := "/etc/modsecurity/disabled-rules.conf"
+	content, _ := os.ReadFile(disabledPath)
+	contentStr := string(content)
+
+	if input.Enabled {
+		// Add CMS exclusion rules
+		if strings.Contains(contentStr, "# "+cms.Name+" Exclusions") {
+			return c.Status(400).JSON(fiber.Map{"error": "Bu exclusion zaten aktif"})
+		}
+
+		f, err := os.OpenFile(disabledPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Dosya açılamadı"})
+		}
+		defer f.Close()
+
+		rulesText := "\n" + strings.Join(cms.Rules, "\n") + "\n"
+		if _, err := f.WriteString(rulesText); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Kurallar yazılamadı"})
+		}
+	} else {
+		// Remove CMS exclusion rules
+		lines := strings.Split(contentStr, "\n")
+		var newLines []string
+		inCMSBlock := false
+
+		for _, line := range lines {
+			if strings.Contains(line, "# "+cms.Name+" Exclusions") {
+				inCMSBlock = true
+				continue
+			}
+
+			if inCMSBlock {
+				// Check if we're still in the CMS block (lines starting with SecRule for this CMS)
+				if strings.HasPrefix(strings.TrimSpace(line), "SecRule") && strings.Contains(line, "id:11") {
+					continue
+				}
+				if strings.TrimSpace(line) == "" {
+					inCMSBlock = false
+				}
+			}
+
+			if !inCMSBlock {
+				newLines = append(newLines, line)
+			}
+		}
+
+		if err := os.WriteFile(disabledPath, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Dosya yazılamadı"})
+		}
+	}
+
+	// Restart Apache
+	exec.Command("systemctl", "restart", "apache2").Run()
+
+	action := "devre dışı bırakıldı"
+	if input.Enabled {
+		action = "etkinleştirildi"
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": cms.Name + " exclusion kuralları " + action,
 	})
 }
