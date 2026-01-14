@@ -285,9 +285,13 @@ install_packages() {
         php${PHP_VERSION}-xml php${PHP_VERSION}-zip php${PHP_VERSION}-intl
     )
     
+    # Apt lock kontrolü (unattended-upgrades bekle)
+    wait_for_apt_lock
+    
     # İlk deneme
     if ! DEBIAN_FRONTEND=noninteractive apt-get install -y "${php_packages[@]}" > /dev/null 2>&1; then
-        # Başarısız olduysa, apt cache'i temizle ve tekrar dene
+        # Başarısız olduysa, apt lock tekrar kontrol et
+        wait_for_apt_lock
         log_warn "PHP kurulumu başarısız, yeniden deneniyor..."
         apt-get clean > /dev/null 2>&1
         apt-get update > /dev/null 2>&1
