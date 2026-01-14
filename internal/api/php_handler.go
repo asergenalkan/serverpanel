@@ -240,7 +240,7 @@ func (h *Handler) UpdateDomainPHPVersion(c *fiber.Ctx) error {
 	}
 
 	// Validate PHP version
-	validVersions := []string{"7.4", "8.0", "8.1", "8.2", "8.3"}
+	validVersions := []string{"7.4", "8.0", "8.1", "8.2", "8.3", "8.4"}
 	isValid := false
 	for _, v := range validVersions {
 		if req.PHPVersion == v {
