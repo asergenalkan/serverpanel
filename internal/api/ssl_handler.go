@@ -332,11 +332,10 @@ func (h *Handler) IssueSSLCertificate(c *fiber.Ctx) error {
 		})
 	}
 
-	// Determine webroot
-	webRoot := filepath.Join("/home", username, "public_html")
-	if _, err := os.Stat(webRoot); os.IsNotExist(err) {
-		webRoot = "/var/www/html"
-	}
+	// Use global webroot for certbot (letsencrypt-acme.conf Alias redirects all domains)
+	// This is the same approach used by cPanel AutoSSL and Plesk
+	// Benefits: works for all domains/subdomains without per-domain directory management
+	webRoot := "/var/www/html"
 
 	// Get email
 	var email string
