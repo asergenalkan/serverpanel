@@ -21,7 +21,9 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	router.Post("/auth/login", h.Login)
 	router.Get("/health", h.Health)
 	router.Get("/internal/pma-credentials", h.GetPhpMyAdminCredentials)
-	router.Get("/internal/allowed-php-versions", h.GetAllowedPHPVersionsInternal)
+
+	// Public API for customer panel (no auth required, internal use only)
+	router.Get("/public/allowed-php-versions", h.GetPublicAllowedPHPVersions)
 
 	// Protected routes
 	protected := router.Group("/", middleware.AuthMiddleware(cfg.JWTSecret))

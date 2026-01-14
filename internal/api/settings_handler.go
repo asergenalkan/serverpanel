@@ -22,7 +22,7 @@ func (h *Handler) GetServerSettings(c *fiber.Ctx) error {
 	settings := ServerSettings{
 		MultiPHPEnabled:    true,
 		DefaultPHPVersion:  "8.1",
-		AllowedPHPVersions: []string{"7.4", "8.0", "8.1", "8.2", "8.3", "8.4"},
+		AllowedPHPVersions: []string{"7.4", "8.0", "8.1", "8.2", "8.3"},
 		DomainBasedPHP:     true,
 	}
 
@@ -114,7 +114,7 @@ func (h *Handler) GetAllowedPHPVersions(c *fiber.Ctx) error {
 	h.db.QueryRow("SELECT value FROM server_settings WHERE key = 'domain_based_php'").Scan(&domainBasedPHP)
 
 	if allowedVersionsStr == "" {
-		allowedVersionsStr = "7.4,8.0,8.1,8.2,8.3,8.4"
+		allowedVersionsStr = "7.4,8.0,8.1,8.2,8.3"
 	}
 
 	allowedVersions := strings.Split(allowedVersionsStr, ",")
@@ -252,8 +252,8 @@ func boolToString(b bool) string {
 	return "false"
 }
 
-// GetAllowedPHPVersionsInternal returns allowed PHP versions for customer panel (internal API)
-func (h *Handler) GetAllowedPHPVersionsInternal(c *fiber.Ctx) error {
+// GetPublicAllowedPHPVersions returns allowed PHP versions for customer panel (no auth required)
+func (h *Handler) GetPublicAllowedPHPVersions(c *fiber.Ctx) error {
 	// Get settings from database
 	var allowedVersionsStr string
 	var domainBasedPHP string
@@ -263,8 +263,9 @@ func (h *Handler) GetAllowedPHPVersionsInternal(c *fiber.Ctx) error {
 	h.db.QueryRow("SELECT value FROM server_settings WHERE key = 'domain_based_php'").Scan(&domainBasedPHP)
 	h.db.QueryRow("SELECT value FROM server_settings WHERE key = 'default_php_version'").Scan(&defaultPHPVersion)
 
+	// Defaults
 	if allowedVersionsStr == "" {
-		allowedVersionsStr = "7.4,8.0,8.1,8.2,8.3,8.4"
+		allowedVersionsStr = "7.4,8.0,8.1,8.2,8.3"
 	}
 	if defaultPHPVersion == "" {
 		defaultPHPVersion = "8.1"
@@ -284,10 +285,10 @@ func (h *Handler) GetAllowedPHPVersionsInternal(c *fiber.Ctx) error {
 		}
 	}
 
-	return c.JSON(map[string]interface{}{
-		"success": true,
-		"data": map[string]interface{}{
-			"allowed_versions":    availableVersions,
+	return c.JSON(models.APIResponse{
+		Success: true,
+		Data: map[string]interface{}{
+			"versions":            availableVersions,
 			"default_php_version": defaultPHPVersion,
 			"domain_based_php":    domainBasedPHP == "true",
 		},
