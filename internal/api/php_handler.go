@@ -41,16 +41,43 @@ type PHPSettings struct {
 }
 
 // GetInstalledPHPVersions returns all installed PHP versions on the server
+// For non-admin users, only returns versions allowed by admin
 func (h *Handler) GetInstalledPHPVersions(c *fiber.Ctx) error {
 	versions := []PHPVersion{}
 
-	// Check common PHP versions
-	phpVersions := []string{"7.4", "8.0", "8.1", "8.2", "8.3"}
+	// Check common PHP versions (including 8.4)
+	phpVersions := []string{"7.4", "8.0", "8.1", "8.2", "8.3", "8.4"}
 	cfg := config.Get()
+
+	// Get user role
+	role := c.Locals("role").(string)
+
+	// Get allowed PHP versions from settings (for non-admin users)
+	var allowedVersions map[string]bool
+	if role != "admin" {
+		allowedVersions = make(map[string]bool)
+		var allowedVersionsStr string
+		h.db.QueryRow("SELECT value FROM server_settings WHERE key = 'allowed_php_versions'").Scan(&allowedVersionsStr)
+		if allowedVersionsStr != "" {
+			for _, v := range strings.Split(allowedVersionsStr, ",") {
+				allowedVersions[strings.TrimSpace(v)] = true
+			}
+		} else {
+			// Default: all versions allowed
+			for _, v := range phpVersions {
+				allowedVersions[v] = true
+			}
+		}
+	}
 
 	for _, v := range phpVersions {
 		fpmPath := fmt.Sprintf("/etc/php/%s/fpm/php-fpm.conf", v)
 		if _, err := os.Stat(fpmPath); err == nil {
+			// For non-admin users, filter by allowed versions
+			if role != "admin" && !allowedVersions[v] {
+				continue
+			}
+
 			versions = append(versions, PHPVersion{
 				Version:   v,
 				Path:      fmt.Sprintf("/etc/php/%s", v),
