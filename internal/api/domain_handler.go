@@ -761,6 +761,7 @@ func (h *Handler) createDomainResources(username, domain, documentRoot string) {
     DocumentRoot %s
     
     <Directory %s>
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
@@ -784,6 +785,7 @@ func (h *Handler) createDomainResources(username, domain, documentRoot string) {
     SSLCertificateKeyFile %s
     
     <Directory %s>
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
@@ -926,6 +928,7 @@ func (h *Handler) createSubdomainResources(username, fullName, documentRoot, red
     DocumentRoot %s
     
     <Directory %s>
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
@@ -948,6 +951,7 @@ func (h *Handler) createSubdomainResources(username, fullName, documentRoot, red
     SSLCertificateKeyFile %s
     
     <Directory %s>
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
@@ -1088,6 +1092,7 @@ func (h *Handler) updateDomainVhost(username, domain, newDocumentRoot string) {
     DocumentRoot %s
     
     <Directory %s>
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
@@ -1111,6 +1116,7 @@ func (h *Handler) updateDomainVhost(username, domain, newDocumentRoot string) {
     SSLCertificateKeyFile %s
     
     <Directory %s>
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>

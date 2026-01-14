@@ -756,6 +756,7 @@ func (h *Handler) configureSSLVhost(domain, username string, cert *certInfo) err
     DocumentRoot %s
     
     <Directory %s>
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
@@ -779,6 +780,7 @@ func (h *Handler) configureSSLVhost(domain, username string, cert *certInfo) err
     SSLCertificateKeyFile %s
     
     <Directory %s>
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
