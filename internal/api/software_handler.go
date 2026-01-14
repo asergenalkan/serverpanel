@@ -170,7 +170,7 @@ func (h *Handler) GetSoftwareOverview(c *fiber.Ctx) error {
 // getPHPVersions returns installed PHP versions
 func (h *Handler) getPHPVersions() []SoftwarePackage {
 	versions := []SoftwarePackage{}
-	phpVersions := []string{"7.4", "8.0", "8.1", "8.2", "8.3"}
+	phpVersions := []string{"7.4", "8.0", "8.1", "8.2", "8.3", "8.4"}
 
 	for _, v := range phpVersions {
 		pkg := SoftwarePackage{
@@ -248,7 +248,7 @@ func (h *Handler) getPHPExtensions() []PHPExtension {
 // getInstalledPHPVersionsList returns list of installed PHP versions
 func (h *Handler) getInstalledPHPVersionsList() []string {
 	versions := []string{}
-	phpVersions := []string{"7.4", "8.0", "8.1", "8.2", "8.3"}
+	phpVersions := []string{"7.4", "8.0", "8.1", "8.2", "8.3", "8.4"}
 
 	for _, v := range phpVersions {
 		fpmPath := fmt.Sprintf("/etc/php/%s/fpm/php-fpm.conf", v)
@@ -458,7 +458,7 @@ func (h *Handler) InstallPHPVersion(c *fiber.Ctx) error {
 	}
 
 	// Validate version format
-	validVersions := map[string]bool{"7.4": true, "8.0": true, "8.1": true, "8.2": true, "8.3": true}
+	validVersions := map[string]bool{"7.4": true, "8.0": true, "8.1": true, "8.2": true, "8.3": true, "8.4": true}
 	if !validVersions[req.Version] {
 		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
 			Success: false,
