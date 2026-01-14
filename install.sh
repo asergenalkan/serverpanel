@@ -164,8 +164,37 @@ check_resources() {
 # KURULUM FONKSİYONLARI
 # ═══════════════════════════════════════════════════════════════════════════════
 
+wait_for_apt_lock() {
+    local max_wait=300  # Maksimum 5 dakika bekle
+    local waited=0
+    
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || \
+          fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \
+          fuser /var/lib/dpkg/lock >/dev/null 2>&1; do
+        if [[ $waited -eq 0 ]]; then
+            log_warn "Apt lock başka bir işlem tarafından kullanılıyor (unattended-upgrades olabilir)"
+            log_detail "İşlem tamamlanana kadar bekleniyor..."
+        fi
+        sleep 5
+        waited=$((waited + 5))
+        if [[ $waited -ge $max_wait ]]; then
+            log_error "Apt lock 5 dakikadır serbest bırakılmadı!"
+            log_error "Manuel olarak deneyin: sudo killall unattended-upgr; sudo rm /var/lib/dpkg/lock-frontend"
+            exit 1
+        fi
+        echo -ne "  ${MAGENTA}◌${NC} Bekleniyor... (${waited}s)\r"
+    done
+    
+    if [[ $waited -gt 0 ]]; then
+        log_done "Apt lock serbest kaldı (${waited}s beklendi)"
+    fi
+}
+
 install_packages() {
     log_step "Sistem Paketleri Kuruluyor"
+    
+    # Önce apt lock'un serbest olmasını bekle
+    wait_for_apt_lock
     
     # dpkg durumunu kontrol et ve düzelt
     log_progress "dpkg durumu kontrol ediliyor"
