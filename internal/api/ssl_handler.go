@@ -730,44 +730,87 @@ func (h *Handler) revokeCertificate(domain string) error {
 }
 
 func (h *Handler) configureSSLVhost(domain, username string, cert *certInfo) error {
-	vhostPath := filepath.Join("/etc/apache2/sites-available", domain+"-ssl.conf")
+	// Ana vhost dosyasındaki HTTPS bloğunu güncelle (ayrı dosya oluşturma!)
+	vhostPath := filepath.Join("/etc/apache2/sites-available", domain+".conf")
 
-	docRoot := filepath.Join("/home", username, "public_html")
-	phpVersion := "8.1" // Default PHP version
+	// Mevcut domain bilgilerini veritabanından al
+	var docRoot, phpVersion string
+	err := h.db.QueryRow(`
+		SELECT COALESCE(d.document_root, '/home/' || u.username || '/public_html'), 
+		       COALESCE(d.php_version, '8.1')
+		FROM domains d 
+		JOIN users u ON d.user_id = u.id 
+		WHERE d.name = ?
+	`, domain).Scan(&docRoot, &phpVersion)
+	if err != nil {
+		// Fallback değerler
+		docRoot = filepath.Join("/home", username, "public_html")
+		phpVersion = "8.1"
+	}
 
-	vhostContent := fmt.Sprintf(`<VirtualHost *:443>
+	// Tam vhost içeriği (HTTP + HTTPS)
+	vhostContent := fmt.Sprintf(`# HTTP VirtualHost
+<VirtualHost *:80>
     ServerName %s
     ServerAlias www.%s
     DocumentRoot %s
-
-    SSLEngine on
-    SSLCertificateFile %s
-    SSLCertificateKeyFile %s
-
+    
     <Directory %s>
-        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
-
+    
     <FilesMatch \.php$>
         SetHandler "proxy:unix:/run/php/php%s-fpm-%s.sock|fcgi://localhost"
     </FilesMatch>
+    
+    ErrorLog ${APACHE_LOG_DIR}/%s-error.log
+    CustomLog ${APACHE_LOG_DIR}/%s-access.log combined
+</VirtualHost>
 
+# HTTPS VirtualHost
+<VirtualHost *:443>
+    ServerName %s
+    ServerAlias www.%s
+    DocumentRoot %s
+    
+    SSLEngine on
+    SSLCertificateFile %s
+    SSLCertificateKeyFile %s
+    
+    <Directory %s>
+        AllowOverride All
+        Require all granted
+    </Directory>
+    
+    <FilesMatch \.php$>
+        SetHandler "proxy:unix:/run/php/php%s-fpm-%s.sock|fcgi://localhost"
+    </FilesMatch>
+    
+    # Security Headers
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    
     ErrorLog ${APACHE_LOG_DIR}/%s-ssl-error.log
     CustomLog ${APACHE_LOG_DIR}/%s-ssl-access.log combined
 </VirtualHost>
-`, domain, domain, docRoot, cert.CertPath, cert.KeyPath, docRoot, phpVersion, username, domain, domain)
+`, domain, domain, docRoot, docRoot, phpVersion, username, domain, domain,
+		domain, domain, docRoot, cert.CertPath, cert.KeyPath, docRoot, phpVersion, username, domain, domain)
 
 	if err := os.WriteFile(vhostPath, []byte(vhostContent), 0644); err != nil {
 		return err
 	}
 
-	// Enable site
-	exec.Command("a2ensite", domain+"-ssl").Run()
+	// Eski ayrı SSL dosyası varsa kaldır
+	oldSSLPath := filepath.Join("/etc/apache2/sites-available", domain+"-ssl.conf")
+	if _, err := os.Stat(oldSSLPath); err == nil {
+		exec.Command("a2dissite", domain+"-ssl").Run()
+		os.Remove(oldSSLPath)
+	}
 
 	// Enable SSL module
 	exec.Command("a2enmod", "ssl").Run()
+	exec.Command("a2enmod", "headers").Run()
 
 	// Reload Apache
 	exec.Command("systemctl", "reload", "apache2").Run()
