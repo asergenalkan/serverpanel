@@ -354,6 +354,20 @@ func (h *Handler) UpdateDomain(c *fiber.Ctx) error {
 		})
 	}
 
+	// If document_root changed, update Apache vhost
+	if req.DocumentRoot != "" {
+		var domainName, username string
+		h.db.QueryRow(`
+			SELECT d.name, u.username FROM domains d 
+			JOIN users u ON d.user_id = u.id 
+			WHERE d.id = ?
+		`, id).Scan(&domainName, &username)
+
+		if domainName != "" && username != "" {
+			go h.updateDomainVhost(username, domainName, req.DocumentRoot)
+		}
+	}
+
 	return c.JSON(models.APIResponse{
 		Success: true,
 		Message: "Domain güncellendi",
@@ -1035,4 +1049,91 @@ func (h *Handler) removeSubdomainResources(username, fullName string) {
 	os.RemoveAll(sslDir)
 
 	log.Printf("✅ Subdomain kaynakları silindi: %s", fullName)
+}
+
+// updateDomainVhost updates Apache vhost with new document root
+func (h *Handler) updateDomainVhost(username, domain, newDocumentRoot string) {
+	if config.IsDevelopment() {
+		log.Printf("🔧 [DEV] Domain vhost güncellenecek: %s -> %s", domain, newDocumentRoot)
+		return
+	}
+
+	cfg := config.Get()
+
+	// Create new directory if not exists
+	if err := os.MkdirAll(newDocumentRoot, 0755); err != nil {
+		log.Printf("❌ Dizin oluşturulamadı: %v", err)
+	} else {
+		exec.Command("chown", "-R", fmt.Sprintf("%s:%s", username, username), newDocumentRoot).Run()
+	}
+
+	// Get SSL certificate paths
+	sslDir := fmt.Sprintf("/etc/ssl/serverpanel/%s", domain)
+	certPath := filepath.Join(sslDir, "cert.pem")
+	keyPath := filepath.Join(sslDir, "key.pem")
+
+	// Check for Let's Encrypt certificate
+	letsEncryptCert := fmt.Sprintf("/etc/letsencrypt/live/%s/fullchain.pem", domain)
+	letsEncryptKey := fmt.Sprintf("/etc/letsencrypt/live/%s/privkey.pem", domain)
+	if _, err := os.Stat(letsEncryptCert); err == nil {
+		certPath = letsEncryptCert
+		keyPath = letsEncryptKey
+	}
+
+	// Update Apache vhost with new document root
+	vhostContent := fmt.Sprintf(`# HTTP VirtualHost
+<VirtualHost *:80>
+    ServerName %s
+    ServerAlias www.%s
+    DocumentRoot %s
+    
+    <Directory %s>
+        AllowOverride All
+        Require all granted
+    </Directory>
+    
+    <FilesMatch \.php$>
+        SetHandler "proxy:unix:/run/php/php%s-fpm-%s.sock|fcgi://localhost"
+    </FilesMatch>
+    
+    ErrorLog ${APACHE_LOG_DIR}/%s-error.log
+    CustomLog ${APACHE_LOG_DIR}/%s-access.log combined
+</VirtualHost>
+
+# HTTPS VirtualHost
+<VirtualHost *:443>
+    ServerName %s
+    ServerAlias www.%s
+    DocumentRoot %s
+    
+    SSLEngine on
+    SSLCertificateFile %s
+    SSLCertificateKeyFile %s
+    
+    <Directory %s>
+        AllowOverride All
+        Require all granted
+    </Directory>
+    
+    <FilesMatch \.php$>
+        SetHandler "proxy:unix:/run/php/php%s-fpm-%s.sock|fcgi://localhost"
+    </FilesMatch>
+    
+    # Security Headers
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    
+    ErrorLog ${APACHE_LOG_DIR}/%s-ssl-error.log
+    CustomLog ${APACHE_LOG_DIR}/%s-ssl-access.log combined
+</VirtualHost>
+`, domain, domain, newDocumentRoot, newDocumentRoot, cfg.PHPVersion, username, domain, domain,
+		domain, domain, newDocumentRoot, certPath, keyPath, newDocumentRoot, cfg.PHPVersion, username, domain, domain)
+
+	vhostPath := fmt.Sprintf("/etc/apache2/sites-available/%s.conf", domain)
+	if err := os.WriteFile(vhostPath, []byte(vhostContent), 0644); err != nil {
+		log.Printf("❌ Vhost güncellenemedi: %v", err)
+	} else {
+		exec.Command("systemctl", "reload", "apache2").Run()
+		log.Printf("✅ Domain vhost güncellendi: %s -> %s", domain, newDocumentRoot)
+	}
 }
