@@ -18,6 +18,7 @@ import {
   Layers,
   ArrowRight,
   Search,
+  Settings,
 } from 'lucide-react';
 
 interface DomainData {
@@ -71,11 +72,14 @@ export default function DomainManagerPage() {
   const [showAddDomainModal, setShowAddDomainModal] = useState(false);
   const [showAddSubdomainModal, setShowAddSubdomainModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditDomainModal, setShowEditDomainModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'domain' | 'subdomain'; id: number; name: string; documentRoot?: string } | null>(null);
   const [deleteFiles, setDeleteFiles] = useState(false);
+  const [editTarget, setEditTarget] = useState<{ id: number; name: string; document_root: string } | null>(null);
 
   // Form states
   const [domainForm, setDomainForm] = useState({ name: '', document_root: '' });
+  const [editDomainForm, setEditDomainForm] = useState({ document_root: '' });
   const [subdomainForm, setSubdomainForm] = useState({ 
     domain_id: 0, 
     name: '', 
@@ -186,6 +190,31 @@ export default function DomainManagerPage() {
     setDeleteTarget({ type, id, name, documentRoot });
     setDeleteFiles(false);
     setShowDeleteModal(true);
+  };
+
+  const openEditDomainModal = (domain: DomainData) => {
+    setEditTarget({ id: domain.id, name: domain.name, document_root: domain.document_root });
+    setEditDomainForm({ document_root: domain.document_root });
+    setShowEditDomainModal(true);
+  };
+
+  const handleUpdateDomain = async () => {
+    if (!editTarget) return;
+
+    try {
+      setActionLoading(editTarget.id);
+      await domainsAPI.update(editTarget.id, {
+        document_root: editDomainForm.document_root,
+      });
+      setMessage({ type: 'success', text: 'Domain güncellendi' });
+      setShowEditDomainModal(false);
+      setEditTarget(null);
+      await fetchData();
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.error || 'Domain güncellenemedi' });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const getDomainTypeLabel = (type: string) => {
@@ -414,6 +443,15 @@ export default function DomainManagerPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => openEditDomainModal(domain)}
+                            disabled={actionLoading === domain.id}
+                            title="Düzenle"
+                          >
+                            <Settings className="w-4 h-4" />
+                          </Button>
                           {domain.domain_type !== 'primary' && (
                             <Button 
                               variant="ghost" 
@@ -691,6 +729,51 @@ export default function DomainManagerPage() {
                   <Button variant="destructive" onClick={handleDelete} disabled={actionLoading !== null}>
                     {actionLoading !== null && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
                     {deleteFiles ? 'Dosyalarla Birlikte Sil' : 'Sil'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Domain Modal */}
+        {showEditDomainModal && editTarget && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-background border border-border rounded-xl shadow-xl max-w-md w-full mx-4">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Domain Düzenle</h3>
+                  <button onClick={() => { setShowEditDomainModal(false); setEditTarget(null); }} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-4 p-3 bg-muted/50 rounded-lg">
+                    <Globe className="w-5 h-5 text-primary" />
+                    <span className="font-medium">{editTarget.name}</span>
+                  </div>
+
+                  <label className="block text-sm font-medium mb-1">Document Root</label>
+                  <input
+                    type="text"
+                    value={editDomainForm.document_root}
+                    onChange={(e) => setEditDomainForm({ ...editDomainForm, document_root: e.target.value })}
+                    placeholder="/home/kullanici/public_html"
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Laravel için: /home/kullanici/public_html/public
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setShowEditDomainModal(false); setEditTarget(null); }}>
+                    İptal
+                  </Button>
+                  <Button onClick={handleUpdateDomain} disabled={actionLoading !== null}>
+                    {actionLoading !== null && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                    Kaydet
                   </Button>
                 </div>
               </div>
