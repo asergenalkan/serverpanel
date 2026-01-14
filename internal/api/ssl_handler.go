@@ -346,7 +346,7 @@ func (h *Handler) IssueSSLCertificate(c *fiber.Ctx) error {
 	}
 
 	// Issue certificate using certbot
-	certInfo, err := h.issueCertificate(domain, webRoot, email)
+	certInfo, err := h.issueCertificate(domain, webRoot, email, username)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
 			Success: false,
@@ -655,11 +655,17 @@ func (h *Handler) getCertificateInfo(domain string) *certInfo {
 	}
 }
 
-func (h *Handler) issueCertificate(domain, webRoot, email string) (*certInfo, error) {
-	// Ensure .well-known/acme-challenge directory exists
-	acmeChallengePath := filepath.Join(webRoot, ".well-known", "acme-challenge")
+func (h *Handler) issueCertificate(domain, webRoot, email, username string) (*certInfo, error) {
+	// Ensure .well-known/acme-challenge directory exists with correct ownership
+	wellKnownPath := filepath.Join(webRoot, ".well-known")
+	acmeChallengePath := filepath.Join(wellKnownPath, "acme-challenge")
 	if err := os.MkdirAll(acmeChallengePath, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create acme-challenge directory: %w", err)
+	}
+
+	// Set correct ownership for the user (so Apache/certbot can read/write)
+	if username != "" {
+		exec.Command("chown", "-R", username+":"+username, wellKnownPath).Run()
 	}
 
 	// Build certbot command
