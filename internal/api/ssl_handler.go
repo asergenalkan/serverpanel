@@ -656,6 +656,12 @@ func (h *Handler) getCertificateInfo(domain string) *certInfo {
 }
 
 func (h *Handler) issueCertificate(domain, webRoot, email string) (*certInfo, error) {
+	// Ensure .well-known/acme-challenge directory exists
+	acmeChallengePath := filepath.Join(webRoot, ".well-known", "acme-challenge")
+	if err := os.MkdirAll(acmeChallengePath, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create acme-challenge directory: %w", err)
+	}
+
 	// Build certbot command
 	args := []string{
 		"certonly",
