@@ -998,9 +998,18 @@ func (s *Service) importFiles(info *CPanelBackupInfo, homeDir string) error {
 				log.Printf("🔧 [SIMÜLASYON] cp -r %s %s", srcAppDir, dstAppDir)
 			} else {
 				os.MkdirAll(filepath.Dir(dstAppDir), 0755)
-				cmd := exec.Command("cp", "-r", srcAppDir, dstAppDir)
+				// Copy with archive mode to preserve permissions
+				cmd := exec.Command("cp", "-a", srcAppDir, dstAppDir)
 				cmd.Run()
+				// Fix ownership
 				exec.Command("chown", "-R", info.Username+":"+info.Username, dstAppDir).Run()
+				// Fix permissions - ensure user has full access and executables in node_modules/.bin work
+				exec.Command("chmod", "-R", "u+rwX", dstAppDir).Run()
+				// Explicitly fix node_modules/.bin executables
+				nodeBinDir := filepath.Join(dstAppDir, "node_modules", ".bin")
+				if _, err := os.Stat(nodeBinDir); err == nil {
+					exec.Command("chmod", "-R", "+x", nodeBinDir).Run()
+				}
 			}
 		}
 	}
