@@ -307,5 +307,12 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Get("/system/updates/status", admin, h.GetUpdateStatus)
 	protected.Post("/system/updates/run", admin, h.RunUpdate)
 
+	// Migration (admin only)
+	protected.Post("/migration/cpanel/upload", admin, h.UploadCPanelBackup)
+	protected.Post("/migration/cpanel/analyze", admin, h.AnalyzeCPanelBackup)
+	protected.Post("/migration/cpanel/import", admin, h.ImportCPanelBackup)
+	protected.Get("/migration/php-versions", admin, h.GetMigrationPHPVersions)
+	protected.Post("/migration/cleanup", admin, h.CleanupMigration)
+
 	// Note: WebSocket route is defined in main.go to avoid SPA fallback conflict
 }

@@ -22,6 +22,7 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 | **Sunucu Yönetimi** | ✅ | ✅ **Sunucu Durumu + Yazılım Yöneticisi + Sistem Sağlığı** | **%95** |
 | **Node.js Yönetimi** | ✅ | ✅ **NVM + PM2 + NPM + Kaynak İzleme** | **%95** |
 | Backup | ✅ | ❌ | %0 |
+| **Migration** | ✅ | ✅ **cPanel Import** | **%60** |
 | **Cron Jobs** | ✅ | ✅ **Tam fonksiyonel** | **%95** |
 | **Güvenlik** | ✅ | ✅ **Fail2ban + UFW + SSH Key + Malware + ModSecurity** | **%95** |
 | Metrics/Logs | ✅ | ⚠️ Temel | %15 |
@@ -30,7 +31,16 @@ Bu dosya WHM/cPanel özelliklerini analiz eder ve ServerPanel'e eklenecek özell
 | **UI/UX** | ✅ | ✅ **Lottie Loading Animasyonları + Tema Uyumu** | **%90** |
 | **Terminal** | ✅ | ✅ **WebSocket Terminal** | **%95** |
 
-### 🆕 Son Eklenen Özellikler (16 Aralık 2025)
+### 🆕 Son Eklenen Özellikler (23 Ocak 2026)
+- ✅ **cPanel Migration** (YENİ!)
+  - cPanel backup (.tar.gz) upload ve analiz
+  - Otomatik hesap bilgisi çıkarma
+  - Node.js/Passenger → PM2 dönüşümü
+  - MySQL, DNS, FTP, DKIM, Cron import
+  - Seçici import seçenekleri
+  - Modern UI ile wizard akışı
+
+### Önceki Özellikler (16 Aralık 2025)
 - ✅ **Node.js Uygulama Yönetimi** (GÜNCELLENDİ!)
   - NVM (Node Version Manager) entegrasyonu
   - PM2 process manager ile uygulama yönetimi
@@ -743,13 +753,21 @@ Henüz yok
 
 ## 🔄 16. MİGRASYON
 
-### Mevcut ❌
-Henüz yok
+### Mevcut ✅
+- [x] **cPanel Migration** (YENİ!)
+  - cPanel backup (.tar.gz) upload ve analiz
+  - Otomatik hesap bilgisi çıkarma (username, domain, email, PHP version)
+  - Node.js/Passenger uygulaması tespiti ve PM2'ye dönüştürme
+  - MySQL veritabanı import
+  - DNS zone import (BIND formatı)
+  - FTP hesapları import (Pure-FTPd uyumlu hash)
+  - DKIM anahtarları import
+  - Cron job'lar import
+  - Seçici import (dosyalar, DB, DNS, email, FTP, Node.js, cron)
+  - Paket atama ve yeni şifre belirleme
+  - İlerleme takibi ve detaylı sonuç raporu
 
-### Eklenecek Özellikler
-- [ ] **cPanel Migration**
-  - cPanel backup import
-  - Hesap transferi
+### Eksik Özellikler
 - [ ] **Plesk Migration**
   - Plesk backup import
 - [ ] **DirectAdmin Migration**

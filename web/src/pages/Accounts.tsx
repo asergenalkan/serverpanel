@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { accountsAPI, packagesAPI } from '@/lib/api';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { accountsAPI, packagesAPI, migrationAPI, CPanelBackupInfo, ImportOptions, ImportResult } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -17,6 +17,16 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
+  Upload,
+  FileArchive,
+  Database,
+  Mail,
+  Server,
+  CheckCircle,
+  XCircle,
+  Clock,
+  HardDrive,
+  Code,
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 
@@ -62,6 +72,28 @@ export default function Accounts() {
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
   const [deleteProgress, setDeleteProgress] = useState<string[]>([]);
   const [error, setError] = useState('');
+
+  // cPanel Import states
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importStep, setImportStep] = useState<'upload' | 'analyze' | 'options' | 'importing' | 'result'>('upload');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [backupInfo, setBackupInfo] = useState<CPanelBackupInfo | null>(null);
+  const [importOptions, setImportOptions] = useState<ImportOptions>({
+    import_files: true,
+    import_databases: true,
+    import_emails: true,
+    import_dns: true,
+    import_ftp: true,
+    import_nodejs: true,
+    import_cron: true,
+    import_ssl: false,
+    package_id: 0,
+    new_password: '',
+    overwrite_existing: false,
+  });
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importError, setImportError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Domain'den kullanıcı adı üret
   const generateUsername = (domain: string): string => {
@@ -248,6 +280,95 @@ export default function Accounts() {
     });
   };
 
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // cPanel Import handlers
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportStep('analyze');
+    setImportError('');
+    setUploadProgress(0);
+
+    try {
+      const response = await migrationAPI.uploadBackup(file, (progress) => {
+        setUploadProgress(progress);
+      });
+
+      if (response.data.success) {
+        setBackupInfo(response.data.data);
+        setImportStep('options');
+        // Set default package if available
+        if (packages.length > 0 && importOptions.package_id === 0) {
+          setImportOptions(prev => ({ ...prev, package_id: packages[0].id }));
+        }
+      } else {
+        setImportError(response.data.error || 'Backup analiz edilemedi');
+        setImportStep('upload');
+      }
+    } catch (err: any) {
+      setImportError(err.response?.data?.error || 'Backup yüklenirken hata oluştu');
+      setImportStep('upload');
+    }
+  };
+
+  const handleImport = async () => {
+    if (!backupInfo || importOptions.package_id === 0) return;
+
+    setImportStep('importing');
+    setImportError('');
+
+    try {
+      const response = await migrationAPI.importBackup(backupInfo, importOptions);
+      setImportResult(response.data.data);
+      setImportStep('result');
+
+      if (response.data.success) {
+        fetchAccounts();
+      }
+    } catch (err: any) {
+      setImportError(err.response?.data?.error || 'Import sırasında hata oluştu');
+      if (err.response?.data?.data) {
+        setImportResult(err.response.data.data);
+        setImportStep('result');
+      } else {
+        setImportStep('options');
+      }
+    }
+  };
+
+  const resetImportModal = () => {
+    setShowImportModal(false);
+    setImportStep('upload');
+    setBackupInfo(null);
+    setImportResult(null);
+    setImportError('');
+    setUploadProgress(0);
+    setImportOptions({
+      import_files: true,
+      import_databases: true,
+      import_emails: true,
+      import_dns: true,
+      import_ftp: true,
+      import_nodejs: true,
+      import_cron: true,
+      import_ssl: false,
+      package_id: packages.length > 0 ? packages[0].id : 0,
+      new_password: '',
+      overwrite_existing: false,
+    });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -259,10 +380,16 @@ export default function Accounts() {
               Müşteri hesaplarını oluşturun ve yönetin
             </p>
           </div>
-          <Button onClick={() => setShowAddModal(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Hesap Oluştur
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowImportModal(true)}>
+              <Upload className="w-4 h-4 mr-2" />
+              cPanel'den Import
+            </Button>
+            <Button onClick={() => setShowAddModal(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Hesap Oluştur
+            </Button>
+          </div>
         </div>
 
         {/* Info Banner */}
@@ -703,6 +830,399 @@ export default function Accounts() {
               <p className="text-xs text-muted-foreground text-center mt-4">
                 Bu işlem birkaç saniye sürebilir, lütfen bekleyin...
               </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* cPanel Import Modal */}
+      {showImportModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={resetImportModal}
+        >
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <CardHeader className="flex flex-row items-center justify-between border-b shrink-0">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <FileArchive className="w-5 h-5" />
+                  cPanel Backup Import
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  cPanel backup dosyasından hesap oluşturun
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={resetImportModal}>
+                <X className="w-4 h-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="overflow-y-auto flex-1 p-6">
+              {/* Step 1: Upload */}
+              {importStep === 'upload' && (
+                <div className="space-y-6">
+                  {importError && (
+                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 text-sm">
+                      {importError}
+                    </div>
+                  )}
+                  
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-12 text-center">
+                    <FileArchive className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">cPanel Backup Dosyası Yükleyin</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      backup-*.tar.gz formatında cPanel full backup dosyası seçin
+                    </p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".tar.gz,.tgz"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <Button onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Dosya Seç
+                    </Button>
+                  </div>
+
+                  <div className="p-4 rounded-lg bg-muted">
+                    <h4 className="font-medium mb-2">Desteklenen İçerikler:</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2"><FolderOpen className="w-4 h-4" /> Dosyalar</div>
+                      <div className="flex items-center gap-2"><Database className="w-4 h-4" /> MySQL</div>
+                      <div className="flex items-center gap-2"><Mail className="w-4 h-4" /> E-posta</div>
+                      <div className="flex items-center gap-2"><Globe className="w-4 h-4" /> DNS</div>
+                      <div className="flex items-center gap-2"><Server className="w-4 h-4" /> FTP</div>
+                      <div className="flex items-center gap-2"><Code className="w-4 h-4" /> Node.js</div>
+                      <div className="flex items-center gap-2"><Clock className="w-4 h-4" /> Cron</div>
+                      <div className="flex items-center gap-2"><HardDrive className="w-4 h-4" /> DKIM</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Analyzing */}
+              {importStep === 'analyze' && (
+                <div className="text-center py-12">
+                  <RefreshCw className="w-16 h-16 mx-auto text-primary animate-spin mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Backup Analiz Ediliyor...</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Dosya yükleniyor ve içerik analiz ediliyor
+                  </p>
+                  {uploadProgress > 0 && (
+                    <div className="w-64 mx-auto">
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">%{uploadProgress}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step 3: Options */}
+              {importStep === 'options' && backupInfo && (
+                <div className="space-y-6">
+                  {importError && (
+                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 text-sm">
+                      {importError}
+                    </div>
+                  )}
+
+                  {/* Backup Info Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardContent className="p-4">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          Hesap Bilgileri
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Kullanıcı:</span>
+                            <span className="font-mono">{backupInfo.username}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Domain:</span>
+                            <span className="font-mono">{backupInfo.domain}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">E-posta:</span>
+                            <span>{backupInfo.email}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">PHP:</span>
+                            <span>{backupInfo.php_version || 'Varsayılan'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Boyut:</span>
+                            <span>{formatBytes(backupInfo.backup_size)}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-4">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Package className="w-4 h-4" />
+                          Tespit Edilen İçerik
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          {backupInfo.has_nodejs && (
+                            <div className="flex items-center gap-2 text-green-600">
+                              <CheckCircle className="w-4 h-4" />
+                              Node.js ({backupInfo.nodejs_apps?.length || 0} uygulama)
+                            </div>
+                          )}
+                          {backupInfo.databases?.length > 0 && (
+                            <div className="flex items-center gap-2 text-green-600">
+                              <CheckCircle className="w-4 h-4" />
+                              {backupInfo.databases.length} Veritabanı
+                            </div>
+                          )}
+                          {backupInfo.email_accounts?.length > 0 && (
+                            <div className="flex items-center gap-2 text-green-600">
+                              <CheckCircle className="w-4 h-4" />
+                              {backupInfo.email_accounts.length} E-posta Hesabı
+                            </div>
+                          )}
+                          {backupInfo.ftp_accounts?.length > 0 && (
+                            <div className="flex items-center gap-2 text-green-600">
+                              <CheckCircle className="w-4 h-4" />
+                              {backupInfo.ftp_accounts.length} FTP Hesabı
+                            </div>
+                          )}
+                          {backupInfo.cron_jobs?.length > 0 && (
+                            <div className="flex items-center gap-2 text-green-600">
+                              <CheckCircle className="w-4 h-4" />
+                              {backupInfo.cron_jobs.length} Cron Job
+                            </div>
+                          )}
+                          {backupInfo.dkim_key && (
+                            <div className="flex items-center gap-2 text-green-600">
+                              <CheckCircle className="w-4 h-4" />
+                              DKIM Anahtarı
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Import Options */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <h4 className="font-medium mb-4">Import Seçenekleri</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={importOptions.import_files}
+                            onChange={(e) => setImportOptions(prev => ({ ...prev, import_files: e.target.checked }))}
+                            className="rounded"
+                          />
+                          <span className="text-sm">Dosyalar</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={importOptions.import_databases}
+                            onChange={(e) => setImportOptions(prev => ({ ...prev, import_databases: e.target.checked }))}
+                            className="rounded"
+                            disabled={!backupInfo.databases?.length}
+                          />
+                          <span className="text-sm">Veritabanları</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={importOptions.import_emails}
+                            onChange={(e) => setImportOptions(prev => ({ ...prev, import_emails: e.target.checked }))}
+                            className="rounded"
+                            disabled={!backupInfo.email_accounts?.length}
+                          />
+                          <span className="text-sm">E-posta</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={importOptions.import_dns}
+                            onChange={(e) => setImportOptions(prev => ({ ...prev, import_dns: e.target.checked }))}
+                            className="rounded"
+                          />
+                          <span className="text-sm">DNS Kayıtları</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={importOptions.import_ftp}
+                            onChange={(e) => setImportOptions(prev => ({ ...prev, import_ftp: e.target.checked }))}
+                            className="rounded"
+                            disabled={!backupInfo.ftp_accounts?.length}
+                          />
+                          <span className="text-sm">FTP Hesapları</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={importOptions.import_nodejs}
+                            onChange={(e) => setImportOptions(prev => ({ ...prev, import_nodejs: e.target.checked }))}
+                            className="rounded"
+                            disabled={!backupInfo.has_nodejs}
+                          />
+                          <span className="text-sm">Node.js Apps</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={importOptions.import_cron}
+                            onChange={(e) => setImportOptions(prev => ({ ...prev, import_cron: e.target.checked }))}
+                            className="rounded"
+                            disabled={!backupInfo.cron_jobs?.length}
+                          />
+                          <span className="text-sm">Cron Jobs</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={importOptions.import_ssl}
+                            onChange={(e) => setImportOptions(prev => ({ ...prev, import_ssl: e.target.checked }))}
+                            className="rounded"
+                          />
+                          <span className="text-sm">SSL (Let's Encrypt)</span>
+                        </label>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Package & Password */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Hosting Paketi *</label>
+                      <select
+                        className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                        value={importOptions.package_id}
+                        onChange={(e) => setImportOptions(prev => ({ ...prev, package_id: parseInt(e.target.value) }))}
+                        required
+                      >
+                        <option value={0}>Paket Seçin</option>
+                        {packages.map((pkg) => (
+                          <option key={pkg.id} value={pkg.id}>
+                            {pkg.name} ({pkg.disk_quota}MB)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Yeni Şifre (Opsiyonel)</label>
+                      <Input
+                        type="password"
+                        placeholder="Boş bırakılırsa otomatik oluşturulur"
+                        value={importOptions.new_password}
+                        onChange={(e) => setImportOptions(prev => ({ ...prev, new_password: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4 border-t">
+                    <Button variant="outline" className="flex-1" onClick={resetImportModal}>
+                      İptal
+                    </Button>
+                    <Button 
+                      className="flex-1" 
+                      onClick={handleImport}
+                      disabled={importOptions.package_id === 0}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Import Et
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Importing */}
+              {importStep === 'importing' && (
+                <div className="text-center py-12">
+                  <RefreshCw className="w-16 h-16 mx-auto text-primary animate-spin mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Import Ediliyor...</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Hesap oluşturuluyor ve veriler aktarılıyor. Bu işlem birkaç dakika sürebilir.
+                  </p>
+                </div>
+              )}
+
+              {/* Step 5: Result */}
+              {importStep === 'result' && importResult && (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    {importResult.success ? (
+                      <>
+                        <CheckCircle className="w-16 h-16 mx-auto text-green-500 mb-4" />
+                        <h3 className="text-lg font-medium text-green-600 mb-2">Import Başarılı!</h3>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-16 h-16 mx-auto text-red-500 mb-4" />
+                        <h3 className="text-lg font-medium text-red-600 mb-2">Import Tamamlandı (Hatalarla)</h3>
+                      </>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      <strong>{importResult.username}</strong> hesabı için{' '}
+                      <strong>{importResult.domain}</strong> domain'i oluşturuldu.
+                    </p>
+                  </div>
+
+                  {importResult.imported.length > 0 && (
+                    <Card>
+                      <CardContent className="p-4">
+                        <h4 className="font-medium mb-3 text-green-600">Import Edilenler</h4>
+                        <div className="space-y-1 text-sm">
+                          {importResult.imported.map((item, index) => (
+                            <div key={index} className="text-green-600">{item}</div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {importResult.warnings.length > 0 && (
+                    <Card>
+                      <CardContent className="p-4">
+                        <h4 className="font-medium mb-3 text-orange-600">Uyarılar</h4>
+                        <div className="space-y-1 text-sm">
+                          {importResult.warnings.map((item, index) => (
+                            <div key={index} className="text-orange-600">⚠️ {item}</div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {importResult.errors.length > 0 && (
+                    <Card>
+                      <CardContent className="p-4">
+                        <h4 className="font-medium mb-3 text-red-600">Hatalar</h4>
+                        <div className="space-y-1 text-sm">
+                          {importResult.errors.map((item, index) => (
+                            <div key={index} className="text-red-600">❌ {item}</div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <div className="flex justify-center">
+                    <Button onClick={resetImportModal}>
+                      Kapat
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

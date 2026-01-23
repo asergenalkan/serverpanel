@@ -295,4 +295,129 @@ export const updatesAPI = {
   run: () => api.post('/system/updates/run'),
 };
 
+// Migration (cPanel Import)
+export const migrationAPI = {
+  uploadBackup: (file: File, onProgress?: (percent: number) => void) => {
+    const formData = new FormData();
+    formData.append('backup', file);
+    return api.post('/migration/cpanel/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 600000, // 10 minutes for large files
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percent);
+        }
+      },
+    });
+  },
+  analyzeBackup: (backupPath: string) => 
+    api.post('/migration/cpanel/analyze', { backup_path: backupPath }),
+  importBackup: (backupInfo: CPanelBackupInfo, importOptions: ImportOptions) =>
+    api.post('/migration/cpanel/import', { backup_info: backupInfo, import_options: importOptions }),
+  getPHPVersions: () => api.get('/migration/php-versions'),
+  cleanup: (extractedPath: string) => 
+    api.post('/migration/cleanup', { extracted_path: extractedPath }),
+};
+
+// Types for Migration
+export interface CPanelBackupInfo {
+  username: string;
+  email: string;
+  domain: string;
+  php_version: string;
+  plan: string;
+  created_at: string;
+  home_dir: string;
+  disk_quota: number;
+  email_limit: number;
+  has_nodejs: boolean;
+  nodejs_version: string;
+  nodejs_apps: NodejsAppInfo[];
+  databases: DatabaseInfo[];
+  email_accounts: EmailAccountInfo[];
+  ftp_accounts: FTPAccountInfo[];
+  dns_records: DNSRecordInfo[];
+  subdomains: SubdomainInfo[];
+  cron_jobs: CronJobInfo[];
+  ssl_certs: SSLCertInfo[];
+  dkim_key: string;
+  backup_size: number;
+  extracted_path: string;
+}
+
+export interface NodejsAppInfo {
+  name: string;
+  path: string;
+  entry_point: string;
+  version: string;
+  env_vars: Record<string, string>;
+}
+
+export interface DatabaseInfo {
+  name: string;
+  size: number;
+  has_dump: boolean;
+  dump_path: string;
+}
+
+export interface EmailAccountInfo {
+  email: string;
+  domain: string;
+  has_mails: boolean;
+}
+
+export interface FTPAccountInfo {
+  username: string;
+  home_dir: string;
+  has_hash: boolean;
+}
+
+export interface DNSRecordInfo {
+  name: string;
+  type: string;
+  content: string;
+  ttl: number;
+}
+
+export interface SubdomainInfo {
+  name: string;
+  document_root: string;
+}
+
+export interface CronJobInfo {
+  schedule: string;
+  command: string;
+}
+
+export interface SSLCertInfo {
+  domain: string;
+  certificate: string;
+  key: string;
+}
+
+export interface ImportOptions {
+  import_files: boolean;
+  import_databases: boolean;
+  import_emails: boolean;
+  import_dns: boolean;
+  import_ftp: boolean;
+  import_nodejs: boolean;
+  import_cron: boolean;
+  import_ssl: boolean;
+  package_id: number;
+  new_password: string;
+  overwrite_existing: boolean;
+}
+
+export interface ImportResult {
+  success: boolean;
+  user_id: number;
+  username: string;
+  domain: string;
+  imported: string[];
+  warnings: string[];
+  errors: string[];
+}
+
 export default api;
