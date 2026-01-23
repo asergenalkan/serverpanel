@@ -567,9 +567,15 @@ export default function NodejsApps() {
                     {app.app_url && (
                       <div className="col-span-2">
                         <p className="text-muted-foreground">URL</p>
-                        <a href={`http://${app.app_url}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
-                          {app.app_url} <ExternalLink className="w-3 h-3" />
-                        </a>
+                        {(() => {
+                          const rawUrl = String(app.app_url || '').trim();
+                          const href = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+                          return (
+                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                              {rawUrl} <ExternalLink className="w-3 h-3" />
+                            </a>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
