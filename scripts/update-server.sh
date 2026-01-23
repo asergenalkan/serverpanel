@@ -179,6 +179,36 @@ if [[ -f "$DB_PATH" ]]; then
         sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS idx_cron_jobs_user_id ON cron_jobs(user_id);" 2>/dev/null || true
     fi
     
+    # users tablosunda email UNIQUE constraint var mı? (WHM uyumluluğu için kaldır)
+    if sqlite3 "$DB_PATH" "SELECT sql FROM sqlite_master WHERE type='table' AND name='users';" | grep -q "email TEXT UNIQUE"; then
+        echo -e "${YELLOW}  users tablosundan email UNIQUE constraint kaldırılıyor (WHM uyumluluğu)...${NC}"
+        sqlite3 "$DB_PATH" << 'MIGRATION_EOF'
+-- Yeni tablo oluştur (email UNIQUE olmadan)
+CREATE TABLE users_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    parent_id INTEGER,
+    active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_id) REFERENCES users(id) ON DELETE SET NULL
+);
+-- Verileri kopyala
+INSERT INTO users_new SELECT * FROM users;
+-- Eski tabloyu sil
+DROP TABLE users;
+-- Yeni tabloyu yeniden adlandır
+ALTER TABLE users_new RENAME TO users;
+-- Index oluştur
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+MIGRATION_EOF
+        echo -e "${GREEN}  ✓ users tablosu güncellendi${NC}"
+    fi
+    
     echo -e "${GREEN}✓ Veritabanı güncellendi${NC}"
 else
     echo -e "${GREEN}✓ Yeni kurulum, migration gerekli değil${NC}"
