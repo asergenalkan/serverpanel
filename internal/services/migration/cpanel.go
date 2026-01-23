@@ -419,14 +419,35 @@ func (s *Service) parseNodejsApps(backupRoot string, info *CPanelBackupInfo) {
 	homeDir := filepath.Join(backupRoot, "homedir")
 	nodevenvDir := filepath.Join(homeDir, "nodevenv")
 
-	if _, err := os.Stat(nodevenvDir); os.IsNotExist(err) {
-		return
+	// Track found apps to avoid duplicates
+	foundApps := make(map[string]bool)
+
+	// Method 1: Check nodevenv directory (cPanel Node.js apps)
+	if _, err := os.Stat(nodevenvDir); err == nil {
+		entries, _ := os.ReadDir(nodevenvDir)
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			appName := entry.Name()
+			// Try to find the actual app directory
+			possiblePaths := []string{
+				filepath.Join(homeDir, appName),
+				filepath.Join(homeDir, "public_html", appName),
+			}
+			for _, appPath := range possiblePaths {
+				if app := s.parseNodejsApp(appPath, appName, nodevenvDir); app != nil {
+					info.NodejsApps = append(info.NodejsApps, *app)
+					foundApps[appPath] = true
+					info.HasNodejs = true
+					break
+				}
+			}
+		}
 	}
 
-	info.HasNodejs = true
-
-	// Find Node.js apps
-	entries, err := os.ReadDir(nodevenvDir)
+	// Method 2: Scan homedir for any package.json files (standalone Node.js apps)
+	entries, err := os.ReadDir(homeDir)
 	if err != nil {
 		return
 	}
@@ -435,78 +456,104 @@ func (s *Service) parseNodejsApps(backupRoot string, info *CPanelBackupInfo) {
 		if !entry.IsDir() {
 			continue
 		}
-
-		appName := entry.Name()
-		appPath := filepath.Join(homeDir, appName)
-
-		// Check for package.json
-		packageJsonPath := filepath.Join(appPath, "package.json")
-		if _, err := os.Stat(packageJsonPath); os.IsNotExist(err) {
+		// Skip common non-app directories
+		name := entry.Name()
+		if name == "mail" || name == "etc" || name == "logs" || name == "ssl" ||
+			name == "tmp" || name == ".trash" || name == ".cpanel" || name == "nodevenv" ||
+			strings.HasPrefix(name, ".") {
 			continue
 		}
 
-		app := NodejsAppInfo{
-			Name: appName,
-			Path: appName,
+		appPath := filepath.Join(homeDir, name)
+		if foundApps[appPath] {
+			continue
 		}
 
-		// Parse package.json
-		if content, err := os.ReadFile(packageJsonPath); err == nil {
-			var pkgJson map[string]interface{}
-			if json.Unmarshal(content, &pkgJson) == nil {
-				if main, ok := pkgJson["main"].(string); ok {
-					app.EntryPoint = main
-				}
-				if scripts, ok := pkgJson["scripts"].(map[string]interface{}); ok {
-					if start, ok := scripts["start"].(string); ok && app.EntryPoint == "" {
-						// Try to extract entry point from start script
-						if strings.Contains(start, "server.js") {
-							app.EntryPoint = "server.js"
-						} else if strings.Contains(start, "app.js") {
-							app.EntryPoint = "app.js"
-						} else if strings.Contains(start, "index.js") {
-							app.EntryPoint = "index.js"
-						}
+		if app := s.parseNodejsApp(appPath, name, nodevenvDir); app != nil {
+			info.NodejsApps = append(info.NodejsApps, *app)
+			info.HasNodejs = true
+		}
+	}
+
+	// Set default Node.js version if found apps but no version detected
+	if info.HasNodejs && info.NodejsVersion == "" {
+		info.NodejsVersion = "18"
+	}
+}
+
+// parseNodejsApp parses a single Node.js application directory
+func (s *Service) parseNodejsApp(appPath, appName, nodevenvDir string) *NodejsAppInfo {
+	packageJsonPath := filepath.Join(appPath, "package.json")
+	if _, err := os.Stat(packageJsonPath); os.IsNotExist(err) {
+		return nil
+	}
+
+	app := &NodejsAppInfo{
+		Name: appName,
+		Path: appName,
+	}
+
+	// Parse package.json
+	if content, err := os.ReadFile(packageJsonPath); err == nil {
+		var pkgJson map[string]interface{}
+		if json.Unmarshal(content, &pkgJson) == nil {
+			// Get app name from package.json if available
+			if pkgName, ok := pkgJson["name"].(string); ok && pkgName != "" {
+				app.Name = pkgName
+			}
+			if main, ok := pkgJson["main"].(string); ok {
+				app.EntryPoint = main
+			}
+			if scripts, ok := pkgJson["scripts"].(map[string]interface{}); ok {
+				if start, ok := scripts["start"].(string); ok && app.EntryPoint == "" {
+					// Try to extract entry point from start script
+					if strings.Contains(start, "server.js") {
+						app.EntryPoint = "server.js"
+					} else if strings.Contains(start, "app.js") {
+						app.EntryPoint = "app.js"
+					} else if strings.Contains(start, "index.js") {
+						app.EntryPoint = "index.js"
+					} else if strings.Contains(start, "next") {
+						app.EntryPoint = "server.js" // Next.js custom server
 					}
 				}
 			}
 		}
+	}
 
-		// Check Node.js version from nodevenv
+	// Check Node.js version from nodevenv
+	if nodevenvDir != "" {
 		versionDir := filepath.Join(nodevenvDir, appName)
 		if vEntries, err := os.ReadDir(versionDir); err == nil {
 			for _, ve := range vEntries {
 				if ve.IsDir() && ve.Name() != ".lock" {
 					app.Version = ve.Name()
-					if info.NodejsVersion == "" {
-						info.NodejsVersion = ve.Name()
-					}
 					break
 				}
 			}
 		}
+	}
 
-		// Parse .env file
-		envPath := filepath.Join(appPath, ".env")
-		if content, err := os.ReadFile(envPath); err == nil {
-			app.EnvVars = make(map[string]string)
-			scanner := bufio.NewScanner(strings.NewReader(string(content)))
-			for scanner.Scan() {
-				line := scanner.Text()
-				if strings.HasPrefix(line, "#") || !strings.Contains(line, "=") {
-					continue
-				}
-				parts := strings.SplitN(line, "=", 2)
-				if len(parts) == 2 {
-					key := strings.TrimSpace(parts[0])
-					value := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
-					app.EnvVars[key] = value
-				}
+	// Parse .env file
+	envPath := filepath.Join(appPath, ".env")
+	if content, err := os.ReadFile(envPath); err == nil {
+		app.EnvVars = make(map[string]string)
+		scanner := bufio.NewScanner(strings.NewReader(string(content)))
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "#") || !strings.Contains(line, "=") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				value := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
+				app.EnvVars[key] = value
 			}
 		}
-
-		info.NodejsApps = append(info.NodejsApps, app)
 	}
+
+	return app
 }
 
 // parseMySQLDatabases parses MySQL database dumps
@@ -516,24 +563,52 @@ func (s *Service) parseMySQLDatabases(backupRoot string, info *CPanelBackupInfo)
 		return
 	}
 
-	// Look for .sql files
-	filepath.Walk(backupRoot, func(path string, fi os.FileInfo, err error) error {
-		if err != nil || fi.IsDir() {
-			return nil
+	// Look for .sql files ONLY in mysql directory (not recursive)
+	entries, err := os.ReadDir(mysqlDir)
+	if err != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
 		}
 
-		if strings.HasSuffix(fi.Name(), ".sql") && !strings.HasPrefix(fi.Name(), "mysql.sql") {
-			dbName := strings.TrimSuffix(fi.Name(), ".sql")
-			info.Databases = append(info.Databases, DatabaseInfo{
-				Name:     dbName,
-				Size:     fi.Size(),
-				HasDump:  true,
-				DumpPath: path,
-			})
+		name := entry.Name()
+		// Skip system databases and non-sql files
+		if !strings.HasSuffix(name, ".sql") {
+			continue
+		}
+		if name == "mysql.sql" || name == "information_schema.sql" || name == "performance_schema.sql" {
+			continue
 		}
 
-		return nil
-	})
+		fi, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		dbName := strings.TrimSuffix(name, ".sql")
+		dumpPath := filepath.Join(mysqlDir, name)
+
+		// Verify it's a real database dump (check file size and content)
+		if fi.Size() < 100 {
+			// Too small, probably not a real dump - check content
+			content, _ := os.ReadFile(dumpPath)
+			contentStr := string(content)
+			// Skip if it's just GRANT statements or empty
+			if !strings.Contains(contentStr, "CREATE TABLE") && !strings.Contains(contentStr, "INSERT INTO") {
+				continue
+			}
+		}
+
+		info.Databases = append(info.Databases, DatabaseInfo{
+			Name:     dbName,
+			Size:     fi.Size(),
+			HasDump:  true,
+			DumpPath: dumpPath,
+		})
+	}
 }
 
 // parseEmailAccounts parses email accounts from the backup
