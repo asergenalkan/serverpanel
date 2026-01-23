@@ -52,6 +52,7 @@ type CPanelBackupInfo struct {
 	SSLCerts      []SSLCertInfo      `json:"ssl_certs"`
 	DKIMKey       string             `json:"dkim_key"`
 	BackupSize    int64              `json:"backup_size"`
+	BackupPath    string             `json:"backup_path"`
 	ExtractedPath string             `json:"extracted_path"`
 }
 
@@ -201,9 +202,43 @@ func (s *Service) ExtractAndAnalyze(backupPath string) (*CPanelBackupInfo, error
 		info.BackupSize = stat.Size()
 	}
 
+	info.BackupPath = backupPath
 	info.ExtractedPath = backupRoot
 
 	return info, nil
+}
+
+func (s *Service) cleanupTempDirs(info *CPanelBackupInfo) {
+	// Only delete our own temp directories under os.TempDir()
+	// - extractedPath -> /tmp/cpanel-backup-*
+	// - backupPath -> /tmp/cpanel-upload-*
+	tempBase := os.TempDir()
+
+	if info != nil {
+		if info.ExtractedPath != "" {
+			extractDir := filepath.Dir(info.ExtractedPath)
+			s.safeRemoveTempDir(tempBase, extractDir, "cpanel-backup-")
+		}
+		if info.BackupPath != "" {
+			uploadDir := filepath.Dir(info.BackupPath)
+			s.safeRemoveTempDir(tempBase, uploadDir, "cpanel-upload-")
+		}
+	}
+}
+
+func (s *Service) safeRemoveTempDir(tempBase, dir, requiredPrefix string) {
+	if dir == "" {
+		return
+	}
+	// Must be directly under tempBase
+	if filepath.Dir(dir) != tempBase {
+		return
+	}
+	base := filepath.Base(dir)
+	if !strings.HasPrefix(base, requiredPrefix) {
+		return
+	}
+	os.RemoveAll(dir)
 }
 
 // extractTarGz extracts a tar.gz file to the destination directory
@@ -836,7 +871,6 @@ func (s *Service) parseSubdomains(backupRoot string, info *CPanelBackupInfo) {
 	}
 }
 
-// Import imports the cPanel backup with the given options
 func (s *Service) Import(info *CPanelBackupInfo, options ImportOptions) (*ImportResult, error) {
 	result := &ImportResult{
 		Username: info.Username,
@@ -845,6 +879,7 @@ func (s *Service) Import(info *CPanelBackupInfo, options ImportOptions) (*Import
 		Warnings: []string{},
 		Errors:   []string{},
 	}
+	defer s.cleanupTempDirs(info)
 
 	// Check if username already exists
 	var count int
