@@ -1010,6 +1010,10 @@ func (s *Service) importFiles(info *CPanelBackupInfo, homeDir string) error {
 				if _, err := os.Stat(nodeBinDir); err == nil {
 					exec.Command("chmod", "-R", "+x", nodeBinDir).Run()
 				}
+				// Do not migrate node_modules/.next from cPanel backups (can cause permission/symlink issues).
+				// Let the user run npm install/build after import.
+				exec.Command("rm", "-rf", filepath.Join(dstAppDir, "node_modules")).Run()
+				exec.Command("rm", "-rf", filepath.Join(dstAppDir, ".next")).Run()
 			}
 		}
 	}
