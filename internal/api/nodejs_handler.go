@@ -314,6 +314,15 @@ func (h *Handler) StartNodejsApp(c *fiber.Ctx) error {
 	pm2Name := fmt.Sprintf("app-%d-%s", app.ID, app.Name)
 	startupPath := filepath.Join(app.AppRoot, app.StartupFile)
 
+	// If already started in PM2, treat as success (idempotent)
+	if existingPM2ID := h.getPM2AppID(pm2Name); existingPM2ID > 0 {
+		h.db.Exec("UPDATE nodejs_apps SET status = 'running', pm2_id = ? WHERE id = ?", existingPM2ID, appID)
+		return c.JSON(models.APIResponse{
+			Success: true,
+			Message: "Uygulama zaten çalışıyor",
+		})
+	}
+
 	startCmd := fmt.Sprintf(`
 		export HOME=/root
 		export NVM_DIR="$HOME/.nvm"
@@ -344,6 +353,16 @@ func (h *Handler) StartNodejsApp(c *fiber.Ctx) error {
 	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if strings.Contains(string(output), "Script already launched") {
+			pm2ID := h.getPM2AppID(pm2Name)
+			if pm2ID > 0 {
+				h.db.Exec("UPDATE nodejs_apps SET status = 'running', pm2_id = ? WHERE id = ?", pm2ID, appID)
+			}
+			return c.JSON(models.APIResponse{
+				Success: true,
+				Message: "Uygulama zaten çalışıyor",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Uygulama başlatılamadı: %s", string(output)),
