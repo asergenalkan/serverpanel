@@ -311,12 +311,6 @@ func (h *Handler) StartNodejsApp(c *fiber.Ctx) error {
 		})
 	}
 
-	// Build PM2 start command
-	envVars := fmt.Sprintf("PORT=%d NODE_ENV=%s", app.Port, app.Mode)
-	if app.Environment != "" {
-		envVars += " " + app.Environment
-	}
-
 	pm2Name := fmt.Sprintf("app-%d-%s", app.ID, app.Name)
 	startupPath := filepath.Join(app.AppRoot, app.StartupFile)
 
@@ -325,11 +319,29 @@ func (h *Handler) StartNodejsApp(c *fiber.Ctx) error {
 		export NVM_DIR="$HOME/.nvm"
 		[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 		cd %s
-		%s pm2 start %s --name %s --cwd %s
-	`, app.AppRoot, envVars, startupPath, pm2Name, app.AppRoot)
+		pm2 start %s --name %s --cwd %s
+	`, app.AppRoot, startupPath, pm2Name, app.AppRoot)
 
 	cmd := exec.Command("bash", "-c", startCmd)
 	cmd.Env = append(os.Environ(), "HOME=/root")
+	cmd.Env = append(cmd.Env, fmt.Sprintf("PORT=%d", app.Port))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("NODE_ENV=%s", app.Mode))
+	if app.Environment != "" {
+		// Prefer JSON map format (current UI), fallback to KEY=VALUE tokens
+		var envMap map[string]string
+		if err := json.Unmarshal([]byte(app.Environment), &envMap); err == nil {
+			for k, v := range envMap {
+				cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+			}
+		} else {
+			fields := strings.Fields(app.Environment)
+			for _, f := range fields {
+				if eq := strings.IndexByte(f, '='); eq > 0 {
+					cmd.Env = append(cmd.Env, f)
+				}
+			}
+		}
+	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
