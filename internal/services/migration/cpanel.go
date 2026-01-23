@@ -1086,10 +1086,10 @@ func (s *Service) importNodejsApps(info *CPanelBackupInfo, userID int64, homeDir
 		s.db.QueryRow("SELECT COALESCE(MAX(port), 2999) FROM nodejs_apps WHERE user_id = ?", userID).Scan(&maxPort)
 		port := maxPort + 1
 
-		// Build app URL
+		// Build app URL (public URL without port - reverse proxy handles routing)
 		appURL := ""
 		if domainName != "" {
-			appURL = fmt.Sprintf("http://%s:%d", domainName, port)
+			appURL = fmt.Sprintf("https://%s", domainName)
 		}
 
 		// Convert env vars to JSON string
