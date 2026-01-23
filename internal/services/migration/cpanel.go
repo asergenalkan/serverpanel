@@ -923,16 +923,11 @@ func (s *Service) Import(info *CPanelBackupInfo, options ImportOptions) (*Import
 	}
 
 	// Import Node.js apps
-	result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: Node.js kontrolü: ImportNodejs=%v, HasNodejs=%v, AppCount=%d", options.ImportNodejs, info.HasNodejs, len(info.NodejsApps)))
 	if options.ImportNodejs && info.HasNodejs && len(info.NodejsApps) > 0 {
 		imported := s.importNodejsApps(info, result.UserID, homeDir, result)
 		if imported > 0 {
 			result.Imported = append(result.Imported, fmt.Sprintf("✅ %d Node.js uygulaması import edildi", imported))
-		} else {
-			result.Warnings = append(result.Warnings, "Node.js uygulamaları import edilemedi")
 		}
-	} else {
-		result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: Node.js import atlandı: ImportNodejs=%v, HasNodejs=%v, Apps=%d", options.ImportNodejs, info.HasNodejs, len(info.NodejsApps)))
 	}
 
 	// Import databases
@@ -1069,13 +1064,11 @@ func (s *Service) importFTPAccounts(info *CPanelBackupInfo, userID int64) int {
 func (s *Service) importNodejsApps(info *CPanelBackupInfo, userID int64, homeDir string, result *ImportResult) int {
 	imported := 0
 
-	result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: Node.js import başlıyor - %d app, userID: %d", len(info.NodejsApps), userID))
-
 	for _, app := range info.NodejsApps {
-		appPath := filepath.Join(homeDir, app.Path)
-		entryPoint := app.EntryPoint
-		if entryPoint == "" {
-			entryPoint = "server.js"
+		appRoot := filepath.Join(homeDir, app.Path)
+		startupFile := app.EntryPoint
+		if startupFile == "" {
+			startupFile = "server.js"
 		}
 
 		nodeVersion := app.Version
@@ -1083,24 +1076,38 @@ func (s *Service) importNodejsApps(info *CPanelBackupInfo, userID int64, homeDir
 			nodeVersion = "18"
 		}
 
-		// Get domain ID
+		// Get domain ID and domain name for app_url
 		var domainID int64
-		err := s.db.QueryRow("SELECT id FROM domains WHERE user_id = ?", userID).Scan(&domainID)
-		if err != nil {
-			result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: Domain bulunamadı userID=%d: %v", userID, err))
+		var domainName string
+		s.db.QueryRow("SELECT id, name FROM domains WHERE user_id = ?", userID).Scan(&domainID, &domainName)
+
+		// Assign a port (start from 3000)
+		var maxPort int
+		s.db.QueryRow("SELECT COALESCE(MAX(port), 2999) FROM nodejs_apps WHERE user_id = ?", userID).Scan(&maxPort)
+		port := maxPort + 1
+
+		// Build app URL
+		appURL := ""
+		if domainName != "" {
+			appURL = fmt.Sprintf("http://%s:%d", domainName, port)
 		}
 
-		result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: App ekleniyor: name=%s, path=%s, domainID=%d", app.Name, appPath, domainID))
+		// Convert env vars to JSON string
+		envJSON := "{}"
+		if len(app.EnvVars) > 0 {
+			if envBytes, err := json.Marshal(app.EnvVars); err == nil {
+				envJSON = string(envBytes)
+			}
+		}
 
-		_, err = s.db.Exec(`
-			INSERT INTO nodejs_apps (user_id, domain_id, name, app_path, entry_point, node_version, port, status, env_vars, created_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, 'stopped', ?, CURRENT_TIMESTAMP)
-		`, userID, domainID, app.Name, appPath, entryPoint, nodeVersion, 3000+imported, "{}")
+		_, err := s.db.Exec(`
+			INSERT INTO nodejs_apps (user_id, domain_id, name, app_root, startup_file, node_version, port, app_url, mode, environment, auto_restart, status, created_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'production', ?, 1, 'stopped', CURRENT_TIMESTAMP)
+		`, userID, domainID, app.Name, appRoot, startupFile, nodeVersion, port, appURL, envJSON)
 
 		if err != nil {
-			result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: App eklenemedi: %v", err))
+			result.Warnings = append(result.Warnings, fmt.Sprintf("Node.js app eklenemedi (%s): %v", app.Name, err))
 		} else {
-			result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: App eklendi: %s", app.Name))
 			imported++
 		}
 	}
