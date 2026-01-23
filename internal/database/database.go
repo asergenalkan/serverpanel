@@ -40,7 +40,7 @@ func (db *DB) migrate() error {
 		`CREATE TABLE IF NOT EXISTS users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			username TEXT UNIQUE NOT NULL,
-			email TEXT UNIQUE NOT NULL,
+			email TEXT NOT NULL,
 			password TEXT NOT NULL,
 			role TEXT NOT NULL DEFAULT 'user',
 			parent_id INTEGER,
