@@ -1076,10 +1076,10 @@ func (s *Service) importNodejsApps(info *CPanelBackupInfo, userID int64, homeDir
 			nodeVersion = "18"
 		}
 
-		// Get domain ID and domain name for app_url
+		// Get domain ID and domain name for app_url (primary domain)
 		var domainID int64
 		var domainName string
-		s.db.QueryRow("SELECT id, name FROM domains WHERE user_id = ?", userID).Scan(&domainID, &domainName)
+		s.db.QueryRow("SELECT id, name FROM domains WHERE user_id = ? AND domain_type = 'primary'", userID).Scan(&domainID, &domainName)
 
 		// Assign a port (start from 3000)
 		var maxPort int
