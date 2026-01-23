@@ -923,17 +923,16 @@ func (s *Service) Import(info *CPanelBackupInfo, options ImportOptions) (*Import
 	}
 
 	// Import Node.js apps
-	log.Printf("🔍 Node.js import kontrolü: ImportNodejs=%v, HasNodejs=%v, AppCount=%d", options.ImportNodejs, info.HasNodejs, len(info.NodejsApps))
+	result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: Node.js kontrolü: ImportNodejs=%v, HasNodejs=%v, AppCount=%d", options.ImportNodejs, info.HasNodejs, len(info.NodejsApps)))
 	if options.ImportNodejs && info.HasNodejs && len(info.NodejsApps) > 0 {
-		imported := s.importNodejsApps(info, result.UserID, homeDir)
-		log.Printf("📊 Node.js import sonucu: %d app import edildi", imported)
+		imported := s.importNodejsApps(info, result.UserID, homeDir, result)
 		if imported > 0 {
 			result.Imported = append(result.Imported, fmt.Sprintf("✅ %d Node.js uygulaması import edildi", imported))
 		} else {
-			result.Warnings = append(result.Warnings, "Node.js uygulamaları import edilemedi - loglara bakın")
+			result.Warnings = append(result.Warnings, "Node.js uygulamaları import edilemedi")
 		}
 	} else {
-		log.Printf("⚠️ Node.js import atlandı: ImportNodejs=%v, HasNodejs=%v, Apps=%d", options.ImportNodejs, info.HasNodejs, len(info.NodejsApps))
+		result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: Node.js import atlandı: ImportNodejs=%v, HasNodejs=%v, Apps=%d", options.ImportNodejs, info.HasNodejs, len(info.NodejsApps)))
 	}
 
 	// Import databases
@@ -1067,10 +1066,10 @@ func (s *Service) importFTPAccounts(info *CPanelBackupInfo, userID int64) int {
 }
 
 // importNodejsApps imports Node.js applications
-func (s *Service) importNodejsApps(info *CPanelBackupInfo, userID int64, homeDir string) int {
+func (s *Service) importNodejsApps(info *CPanelBackupInfo, userID int64, homeDir string, result *ImportResult) int {
 	imported := 0
 
-	log.Printf("🚀 Node.js app import başlıyor - toplam: %d app, userID: %d", len(info.NodejsApps), userID)
+	result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: Node.js import başlıyor - %d app, userID: %d", len(info.NodejsApps), userID))
 
 	for _, app := range info.NodejsApps {
 		appPath := filepath.Join(homeDir, app.Path)
@@ -1088,9 +1087,10 @@ func (s *Service) importNodejsApps(info *CPanelBackupInfo, userID int64, homeDir
 		var domainID int64
 		err := s.db.QueryRow("SELECT id FROM domains WHERE user_id = ?", userID).Scan(&domainID)
 		if err != nil {
-			log.Printf("⚠️ Domain bulunamadı userID=%d: %v", userID, err)
+			result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: Domain bulunamadı userID=%d: %v", userID, err))
 		}
-		log.Printf("📝 Node.js app ekleniyor: name=%s, path=%s, entry=%s, version=%s, domainID=%d", app.Name, appPath, entryPoint, nodeVersion, domainID)
+
+		result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: App ekleniyor: name=%s, path=%s, domainID=%d", app.Name, appPath, domainID))
 
 		_, err = s.db.Exec(`
 			INSERT INTO nodejs_apps (user_id, domain_id, name, app_path, entry_point, node_version, port, status, env_vars, created_at)
@@ -1098,9 +1098,9 @@ func (s *Service) importNodejsApps(info *CPanelBackupInfo, userID int64, homeDir
 		`, userID, domainID, app.Name, appPath, entryPoint, nodeVersion, 3000+imported, "{}")
 
 		if err != nil {
-			log.Printf("❌ Node.js app eklenemedi: %v", err)
+			result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: App eklenemedi: %v", err))
 		} else {
-			log.Printf("✅ Node.js app eklendi: %s", app.Name)
+			result.Warnings = append(result.Warnings, fmt.Sprintf("DEBUG: App eklendi: %s", app.Name))
 			imported++
 		}
 	}
