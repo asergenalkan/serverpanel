@@ -875,9 +875,10 @@ export default function Accounts() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".tar.gz,.tgz"
+                      accept=".tar.gz,.tgz,.gz,application/gzip,application/x-gzip,application/x-tar"
                       onChange={handleFileSelect}
                       className="hidden"
+                      id="cpanel-backup-input"
                     />
                     <Button onClick={() => fileInputRef.current?.click()}>
                       <Upload className="w-4 h-4 mr-2" />
