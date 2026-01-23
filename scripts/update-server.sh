@@ -180,7 +180,8 @@ if [[ -f "$DB_PATH" ]]; then
     fi
     
     # users tablosunda email UNIQUE constraint var mı? (WHM uyumluluğu için kaldır)
-    if sqlite3 "$DB_PATH" "SELECT sql FROM sqlite_master WHERE type='table' AND name='users';" | grep -q "email TEXT UNIQUE"; then
+    # Boşluk/tab farkı olabilir, bu yüzden daha esnek kontrol
+    if sqlite3 "$DB_PATH" "SELECT sql FROM sqlite_master WHERE type='table' AND name='users';" | grep -E "email\s+TEXT\s+UNIQUE" > /dev/null 2>&1; then
         echo -e "${YELLOW}  users tablosundan email UNIQUE constraint kaldırılıyor (WHM uyumluluğu)...${NC}"
         sqlite3 "$DB_PATH" << 'MIGRATION_EOF'
 -- Yeni tablo oluştur (email UNIQUE olmadan)
