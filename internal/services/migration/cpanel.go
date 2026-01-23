@@ -923,11 +923,17 @@ func (s *Service) Import(info *CPanelBackupInfo, options ImportOptions) (*Import
 	}
 
 	// Import Node.js apps
+	log.Printf("🔍 Node.js import kontrolü: ImportNodejs=%v, HasNodejs=%v, AppCount=%d", options.ImportNodejs, info.HasNodejs, len(info.NodejsApps))
 	if options.ImportNodejs && info.HasNodejs && len(info.NodejsApps) > 0 {
 		imported := s.importNodejsApps(info, result.UserID, homeDir)
+		log.Printf("📊 Node.js import sonucu: %d app import edildi", imported)
 		if imported > 0 {
 			result.Imported = append(result.Imported, fmt.Sprintf("✅ %d Node.js uygulaması import edildi", imported))
+		} else {
+			result.Warnings = append(result.Warnings, "Node.js uygulamaları import edilemedi - loglara bakın")
 		}
+	} else {
+		log.Printf("⚠️ Node.js import atlandı: ImportNodejs=%v, HasNodejs=%v, Apps=%d", options.ImportNodejs, info.HasNodejs, len(info.NodejsApps))
 	}
 
 	// Import databases
