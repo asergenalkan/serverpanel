@@ -136,6 +136,7 @@ export const accountsAPI = {
     domain: string;
     package_id: number;
   }) => api.post('/accounts', data),
+  resetPassword: (id: number, password: string) => api.post(`/accounts/${id}/password`, { password }),
   delete: (id: number) => api.delete(`/accounts/${id}`),
   suspend: (id: number) => api.post(`/accounts/${id}/suspend`),
   unsuspend: (id: number) => api.post(`/accounts/${id}/unsuspend`),

@@ -1129,9 +1129,9 @@ func (s *Service) importNodejsApps(info *CPanelBackupInfo, userID int64, homeDir
 		var domainName string
 		s.db.QueryRow("SELECT id, name FROM domains WHERE user_id = ? AND domain_type = 'primary'", userID).Scan(&domainID, &domainName)
 
-		// Assign a port (start from 3000)
+		// Assign a port (match manual Create flow: first app => 3001)
 		var maxPort int
-		s.db.QueryRow("SELECT COALESCE(MAX(port), 2999) FROM nodejs_apps WHERE user_id = ?", userID).Scan(&maxPort)
+		s.db.QueryRow("SELECT COALESCE(MAX(port), 3000) FROM nodejs_apps").Scan(&maxPort)
 		port := maxPort + 1
 
 		// Build app URL: store as domain/subdomain only (no scheme) to match manual create flow

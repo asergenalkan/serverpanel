@@ -3,6 +3,7 @@ package api
 import (
 	"strconv"
 
+	"github.com/asergenalkan/serverpanel/internal/auth"
 	"github.com/asergenalkan/serverpanel/internal/models"
 	"github.com/asergenalkan/serverpanel/internal/services/account"
 	"github.com/gofiber/fiber/v2"
@@ -178,5 +179,63 @@ func (h *Handler) UnsuspendAccount(c *fiber.Ctx) error {
 	return c.JSON(models.APIResponse{
 		Success: true,
 		Data:    map[string]string{"message": "Account unsuspended"},
+	})
+}
+
+// ResetAccountPassword resets a hosting account's panel password (Admin only)
+func (h *Handler) ResetAccountPassword(c *fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Invalid account ID",
+		})
+	}
+
+	var req struct {
+		Password string `json:"password"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Invalid request body",
+		})
+	}
+
+	if len(req.Password) < 8 {
+		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Şifre en az 8 karakter olmalıdır",
+		})
+	}
+
+	var count int
+	h.db.QueryRow("SELECT COUNT(*) FROM users WHERE id = ? AND role = 'user'", id).Scan(&count)
+	if count == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Account not found",
+		})
+	}
+
+	hashed, err := auth.HashPassword(req.Password)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Şifre oluşturma hatası",
+		})
+	}
+
+	_, err = h.db.Exec("UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", hashed, id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
+			Success: false,
+			Error:   "Şifre güncellenemedi",
+		})
+	}
+
+	return c.JSON(models.APIResponse{
+		Success: true,
+		Message: "Şifre başarıyla güncellendi",
 	})
 }

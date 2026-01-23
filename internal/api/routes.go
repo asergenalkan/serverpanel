@@ -58,6 +58,7 @@ func SetupRoutes(router fiber.Router, db *database.DB) {
 	protected.Post("/accounts", admin, h.CreateAccount)
 	protected.Get("/accounts/:id", admin, h.GetAccount)
 	protected.Delete("/accounts/:id", admin, h.DeleteAccount)
+	protected.Post("/accounts/:id/password", admin, h.ResetAccountPassword)
 	protected.Post("/accounts/:id/suspend", admin, h.SuspendAccount)
 	protected.Post("/accounts/:id/unsuspend", admin, h.UnsuspendAccount)
 

@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
+  KeyRound,
   Upload,
   FileArchive,
   Database,
@@ -57,6 +58,11 @@ export default function Accounts() {
   const [packages, setPackages] = useState<HostingPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordAccount, setPasswordAccount] = useState<Account | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [updatingPassword, setUpdatingPassword] = useState(false);
   const [formData, setFormData] = useState({
     domain: '',
     username: '',
@@ -269,6 +275,52 @@ export default function Accounts() {
       fetchAccounts();
     } catch (error) {
       console.error('Failed to unsuspend account:', error);
+    }
+  };
+
+  const openPasswordModal = (account: Account) => {
+    setPasswordAccount(account);
+    const generated = generatePassword();
+    setNewPassword(generated);
+    setNewPasswordConfirm(generated);
+    setShowPassword(true);
+    setShowPasswordModal(true);
+  };
+
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setPasswordAccount(null);
+    setNewPassword('');
+    setNewPasswordConfirm('');
+    setUpdatingPassword(false);
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordAccount) return;
+    setError('');
+
+    if (newPassword.length < 8) {
+      setError('Şifre en az 8 karakter olmalıdır');
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      setError('Şifreler eşleşmiyor');
+      return;
+    }
+
+    setUpdatingPassword(true);
+    try {
+      const response = await accountsAPI.resetPassword(passwordAccount.id, newPassword);
+      if (response.data.success) {
+        closePasswordModal();
+      } else {
+        setError(response.data.error || 'Şifre güncellenemedi');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Şifre güncellenemedi');
+    } finally {
+      setUpdatingPassword(false);
     }
   };
 
@@ -547,6 +599,15 @@ export default function Accounts() {
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-500 hover:text-blue-700"
+                              onClick={() => openPasswordModal(account)}
+                              title="Şifre Değiştir"
+                            >
+                              <KeyRound className="w-4 h-4" />
+                            </Button>
                             {account.active ? (
                               <Button
                                 variant="ghost"
@@ -787,6 +848,64 @@ export default function Accounts() {
                     disabled={!formData.domain || !formData.username || !formData.password || formData.password !== formData.passwordConfirm}
                   >
                     Hesap Oluştur
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Password Reset Modal */}
+      {showPasswordModal && passwordAccount && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={closePasswordModal}>
+          <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <CardTitle>Şifre Değiştir</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                <strong>{passwordAccount.username}</strong> hesabının panel şifresi güncellenecek.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {error && (
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 text-sm mb-4">
+                  {error}
+                </div>
+              )}
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Yeni Şifre</label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Yeni şifre"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Yeni Şifre (Tekrar)</label>
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    value={newPasswordConfirm}
+                    onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                    placeholder="Yeni şifre tekrar"
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button type="button" variant="outline" className="flex-1" onClick={closePasswordModal}>
+                    İptal
+                  </Button>
+                  <Button type="submit" className="flex-1" isLoading={updatingPassword}>
+                    Kaydet
                   </Button>
                 </div>
               </form>
