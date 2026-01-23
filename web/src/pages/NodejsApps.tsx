@@ -189,7 +189,9 @@ export default function NodejsApps() {
     try {
       const response = await api.post(`/nodejs/apps/${app.id}/start`);
       if (response.data.success) {
-        fetchApps();
+        setApps(prev => prev.map(a => a.id === app.id ? { ...a, status: 'running' } : a));
+        await new Promise(resolve => setTimeout(resolve, 600));
+        await fetchApps();
       }
     } catch (err: any) {
       alert(err.response?.data?.error || 'Uygulama başlatılamadı');
@@ -203,7 +205,9 @@ export default function NodejsApps() {
     try {
       const response = await api.post(`/nodejs/apps/${app.id}/stop`);
       if (response.data.success) {
-        fetchApps();
+        setApps(prev => prev.map(a => a.id === app.id ? { ...a, status: 'stopped' } : a));
+        await new Promise(resolve => setTimeout(resolve, 400));
+        await fetchApps();
       }
     } catch (err: any) {
       alert(err.response?.data?.error || 'Uygulama durdurulamadı');
@@ -217,7 +221,8 @@ export default function NodejsApps() {
     try {
       const response = await api.post(`/nodejs/apps/${app.id}/restart`);
       if (response.data.success) {
-        fetchApps();
+        await new Promise(resolve => setTimeout(resolve, 600));
+        await fetchApps();
       }
     } catch (err: any) {
       alert(err.response?.data?.error || 'Uygulama yeniden başlatılamadı');
