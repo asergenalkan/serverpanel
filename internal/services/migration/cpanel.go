@@ -419,24 +419,30 @@ func (s *Service) parseNodejsApps(backupRoot string, info *CPanelBackupInfo) {
 	homeDir := filepath.Join(backupRoot, "homedir")
 	nodevenvDir := filepath.Join(homeDir, "nodevenv")
 
+	log.Printf("🔍 Node.js app aranıyor - homeDir: %s, nodevenvDir: %s", homeDir, nodevenvDir)
+
 	// Track found apps to avoid duplicates
 	foundApps := make(map[string]bool)
 
 	// Method 1: Check nodevenv directory (cPanel Node.js apps)
 	if _, err := os.Stat(nodevenvDir); err == nil {
+		log.Printf("✅ nodevenv klasörü bulundu")
 		entries, _ := os.ReadDir(nodevenvDir)
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue
 			}
 			appName := entry.Name()
+			log.Printf("📦 nodevenv'de app bulundu: %s", appName)
 			// Try to find the actual app directory
 			possiblePaths := []string{
 				filepath.Join(homeDir, appName),
 				filepath.Join(homeDir, "public_html", appName),
 			}
 			for _, appPath := range possiblePaths {
+				log.Printf("🔎 App yolu kontrol ediliyor: %s", appPath)
 				if app := s.parseNodejsApp(appPath, appName, nodevenvDir); app != nil {
+					log.Printf("✅ Node.js app tespit edildi: %s (path: %s, entry: %s, version: %s)", app.Name, app.Path, app.EntryPoint, app.Version)
 					info.NodejsApps = append(info.NodejsApps, *app)
 					foundApps[appPath] = true
 					info.HasNodejs = true
@@ -444,6 +450,8 @@ func (s *Service) parseNodejsApps(backupRoot string, info *CPanelBackupInfo) {
 				}
 			}
 		}
+	} else {
+		log.Printf("⚠️ nodevenv klasörü bulunamadı: %v", err)
 	}
 
 	// Method 2: Scan homedir for any package.json files (standalone Node.js apps)
@@ -1056,6 +1064,8 @@ func (s *Service) importFTPAccounts(info *CPanelBackupInfo, userID int64) int {
 func (s *Service) importNodejsApps(info *CPanelBackupInfo, userID int64, homeDir string) int {
 	imported := 0
 
+	log.Printf("🚀 Node.js app import başlıyor - toplam: %d app, userID: %d", len(info.NodejsApps), userID)
+
 	for _, app := range info.NodejsApps {
 		appPath := filepath.Join(homeDir, app.Path)
 		entryPoint := app.EntryPoint
@@ -1070,14 +1080,21 @@ func (s *Service) importNodejsApps(info *CPanelBackupInfo, userID int64, homeDir
 
 		// Get domain ID
 		var domainID int64
-		s.db.QueryRow("SELECT id FROM domains WHERE user_id = ?", userID).Scan(&domainID)
+		err := s.db.QueryRow("SELECT id FROM domains WHERE user_id = ?", userID).Scan(&domainID)
+		if err != nil {
+			log.Printf("⚠️ Domain bulunamadı userID=%d: %v", userID, err)
+		}
+		log.Printf("📝 Node.js app ekleniyor: name=%s, path=%s, entry=%s, version=%s, domainID=%d", app.Name, appPath, entryPoint, nodeVersion, domainID)
 
-		_, err := s.db.Exec(`
+		_, err = s.db.Exec(`
 			INSERT INTO nodejs_apps (user_id, domain_id, name, app_path, entry_point, node_version, port, status, env_vars, created_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, 'stopped', ?, CURRENT_TIMESTAMP)
 		`, userID, domainID, app.Name, appPath, entryPoint, nodeVersion, 3000+imported, "{}")
 
-		if err == nil {
+		if err != nil {
+			log.Printf("❌ Node.js app eklenemedi: %v", err)
+		} else {
+			log.Printf("✅ Node.js app eklendi: %s", app.Name)
 			imported++
 		}
 	}
