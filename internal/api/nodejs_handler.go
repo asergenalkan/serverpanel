@@ -105,13 +105,27 @@ func (h *Handler) ListNodejsApps(c *fiber.Ctx) error {
 		app.AutoRestart = autoRestart == 1
 
 		// Get real-time status and stats from PM2
-		if app.PM2ID != nil {
+		if app.PM2ID != nil && *app.PM2ID > 0 {
 			status, cpu, memory, uptime, restarts := h.getPM2AppStats(*app.PM2ID)
 			app.Status = status
 			app.CPU = cpu
 			app.Memory = memory
 			app.Uptime = uptime
 			app.Restarts = restarts
+		} else {
+			// pm2_id is missing/invalid (e.g. 0). Try to find PM2 process by its name and sync DB.
+			pm2Name := fmt.Sprintf("app-%d-%s", app.ID, app.Name)
+			if pm2ID := h.getPM2AppID(pm2Name); pm2ID > 0 {
+				appPM2ID := pm2ID
+				app.PM2ID = &appPM2ID
+				h.db.Exec("UPDATE nodejs_apps SET pm2_id = ?, status = 'running' WHERE id = ?", pm2ID, app.ID)
+				status, cpu, memory, uptime, restarts := h.getPM2AppStats(pm2ID)
+				app.Status = status
+				app.CPU = cpu
+				app.Memory = memory
+				app.Uptime = uptime
+				app.Restarts = restarts
+			}
 		}
 
 		apps = append(apps, app)
@@ -1038,7 +1052,7 @@ func (h *Handler) getPM2AppID(name string) int {
 		export HOME=/root
 		export NVM_DIR="$HOME/.nvm"
 		[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-		pm2 jlist 2>/dev/null | grep -o '"name":"%s"[^}]*"pm_id":[0-9]*' | grep -o '"pm_id":[0-9]*' | cut -d':' -f2
+		pm2 id %s 2>/dev/null | head -n 1
 	`, name)
 
 	cmd := exec.Command("bash", "-c", idCmd)
