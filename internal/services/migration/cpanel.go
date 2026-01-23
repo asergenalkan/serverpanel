@@ -789,8 +789,13 @@ func (s *Service) Import(info *CPanelBackupInfo, options ImportOptions) (*Import
 	})
 
 	if err != nil {
-		// If user exists and overwrite is enabled, continue
-		if !strings.Contains(err.Error(), "exists") {
+		// If user exists or email constraint failed, try to continue
+		errStr := err.Error()
+		if strings.Contains(errStr, "exists") || strings.Contains(errStr, "UNIQUE constraint") {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("Kullanıcı/email zaten mevcut: %v", err))
+			// Try to get existing user
+			s.db.QueryRow("SELECT id FROM users WHERE username = ?", info.Username).Scan(&result.UserID)
+		} else {
 			result.Errors = append(result.Errors, fmt.Sprintf("Hesap oluşturulamadı: %v", err))
 			return result, err
 		}
