@@ -1086,6 +1086,13 @@ func (h *Handler) createApacheProxyConfig(appID int64, port int, appURL string) 
 <VirtualHost *:80>
     ServerName %s
     
+    # Let's Encrypt ACME challenge - bypass proxy
+    ProxyPass /.well-known/acme-challenge !
+    Alias /.well-known/acme-challenge /var/www/html/.well-known/acme-challenge
+    <Directory /var/www/html/.well-known/acme-challenge>
+        Require all granted
+    </Directory>
+    
     # Node.js Reverse Proxy
     ProxyPreserveHost On
     ProxyPass / http://127.0.0.1:%d/
@@ -1134,6 +1141,13 @@ func (h *Handler) createApacheProxyConfig(appID int64, port int, appURL string) 
     SSLEngine on
     SSLCertificateFile %s
     SSLCertificateKeyFile %s
+    
+    # Let's Encrypt ACME challenge - bypass proxy
+    ProxyPass /.well-known/acme-challenge !
+    Alias /.well-known/acme-challenge /var/www/html/.well-known/acme-challenge
+    <Directory /var/www/html/.well-known/acme-challenge>
+        Require all granted
+    </Directory>
     
     # Node.js Reverse Proxy
     ProxyPreserveHost On

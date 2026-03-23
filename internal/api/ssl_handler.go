@@ -667,23 +667,14 @@ func (h *Handler) issueCertificate(domain, webRoot, email, username string) (*ce
 		exec.Command("chown", "-R", username+":"+username, wellKnownPath).Run()
 	}
 
-	// Build certbot command - try with www subdomain first
-	args := []string{
-		"certonly",
-		"--webroot",
-		"-w", webRoot,
-		"-d", domain,
-		"-d", "www." + domain,
-		"--email", email,
-		"--agree-tos",
-		"--non-interactive",
-		"--force-renewal", // Force renewal to avoid stale authorization issues
-	}
+	// Check if this is a subdomain (e.g., admin.tradenzio.com has 3+ parts, tradenzio.com has 2)
+	// For subdomains, don't add www prefix (www.admin.tradenzio.com doesn't make sense)
+	parts := strings.Split(domain, ".")
+	isSubdomain := len(parts) > 2
 
-	cmd := exec.Command("certbot", args...)
-	output1, err := cmd.CombinedOutput()
-	if err != nil {
-		// If www subdomain fails, try without it
+	var args []string
+	if isSubdomain {
+		// For subdomains, only request certificate for the subdomain itself
 		args = []string{
 			"certonly",
 			"--webroot",
@@ -692,15 +683,47 @@ func (h *Handler) issueCertificate(domain, webRoot, email, username string) (*ce
 			"--email", email,
 			"--agree-tos",
 			"--non-interactive",
-			"--force-renewal", // Force renewal to avoid stale authorization issues
+			"--force-renewal",
 		}
-		cmd = exec.Command("certbot", args...)
-		output2, err2 := cmd.CombinedOutput()
-		if err2 != nil {
-			// Return both errors for debugging
-			return nil, fmt.Errorf("first attempt (with www): %s | second attempt (without www): %s",
-				strings.TrimSpace(string(output1)),
-				strings.TrimSpace(string(output2)))
+	} else {
+		// For main domains, try with www subdomain
+		args = []string{
+			"certonly",
+			"--webroot",
+			"-w", webRoot,
+			"-d", domain,
+			"-d", "www." + domain,
+			"--email", email,
+			"--agree-tos",
+			"--non-interactive",
+			"--force-renewal",
+		}
+	}
+
+	cmd := exec.Command("certbot", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// If main domain with www fails, try without www
+		if !isSubdomain {
+			args = []string{
+				"certonly",
+				"--webroot",
+				"-w", webRoot,
+				"-d", domain,
+				"--email", email,
+				"--agree-tos",
+				"--non-interactive",
+				"--force-renewal",
+			}
+			cmd = exec.Command("certbot", args...)
+			output2, err2 := cmd.CombinedOutput()
+			if err2 != nil {
+				return nil, fmt.Errorf("with www: %s | without www: %s",
+					strings.TrimSpace(string(output)),
+					strings.TrimSpace(string(output2)))
+			}
+		} else {
+			return nil, fmt.Errorf("%s", strings.TrimSpace(string(output)))
 		}
 	}
 
