@@ -667,7 +667,7 @@ func (h *Handler) issueCertificate(domain, webRoot, email, username string) (*ce
 		exec.Command("chown", "-R", username+":"+username, wellKnownPath).Run()
 	}
 
-	// Build certbot command
+	// Build certbot command - try with www subdomain first
 	args := []string{
 		"certonly",
 		"--webroot",
@@ -677,10 +677,11 @@ func (h *Handler) issueCertificate(domain, webRoot, email, username string) (*ce
 		"--email", email,
 		"--agree-tos",
 		"--non-interactive",
+		"--force-renewal", // Force renewal to avoid stale authorization issues
 	}
 
 	cmd := exec.Command("certbot", args...)
-	_, err := cmd.CombinedOutput()
+	output1, err := cmd.CombinedOutput()
 	if err != nil {
 		// If www subdomain fails, try without it
 		args = []string{
@@ -691,11 +692,15 @@ func (h *Handler) issueCertificate(domain, webRoot, email, username string) (*ce
 			"--email", email,
 			"--agree-tos",
 			"--non-interactive",
+			"--force-renewal", // Force renewal to avoid stale authorization issues
 		}
 		cmd = exec.Command("certbot", args...)
 		output2, err2 := cmd.CombinedOutput()
 		if err2 != nil {
-			return nil, fmt.Errorf("%s: %w", strings.TrimSpace(string(output2)), err2)
+			// Return both errors for debugging
+			return nil, fmt.Errorf("first attempt (with www): %s | second attempt (without www): %s",
+				strings.TrimSpace(string(output1)),
+				strings.TrimSpace(string(output2)))
 		}
 	}
 
@@ -845,6 +850,7 @@ func (h *Handler) issueCertificateForFQDN(fqdn, webRoot, email string) (*certInf
 		"--email", email,
 		"--agree-tos",
 		"--non-interactive",
+		"--force-renewal", // Force renewal to avoid stale authorization issues
 	}
 
 	cmd := exec.Command("certbot", args...)
