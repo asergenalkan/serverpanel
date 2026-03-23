@@ -705,15 +705,16 @@ func (h *Handler) GetPackageJsonScripts(c *fiber.Ctx) error {
 		})
 	}
 
-	// Filter out dangerous scripts
+	// Filter out dangerous scripts - TEMPORARILY DISABLED
 	safeScripts := make(map[string]string)
 	dangerousScripts := make(map[string]string)
 	for name, script := range packageJson.Scripts {
-		if dangerous, pattern := containsDangerousCommand(script); dangerous {
-			dangerousScripts[name] = fmt.Sprintf("Engellendi: '%s' içeriyor", pattern)
-		} else {
-			safeScripts[name] = script
-		}
+		// if dangerous, pattern := containsDangerousCommand(script); dangerous {
+		// 	dangerousScripts[name] = fmt.Sprintf("Engellendi: '%s' içeriyor", pattern)
+		// } else {
+		safeScripts[name] = script
+		// }
+		_ = script // suppress unused warning
 	}
 
 	return c.JSON(models.APIResponse{
@@ -892,23 +893,23 @@ func (h *Handler) validateNpmCommandWs(userID int64, role, appID, command string
 		return nil, false
 	}
 
-	// Check dangerous scripts
-	if baseCmd == "run" && len(cmdParts) >= 2 {
-		scriptName := cmdParts[1]
-		packageJsonPath := filepath.Join(app.AppRoot, "package.json")
-		if data, err := os.ReadFile(packageJsonPath); err == nil {
-			var packageJson struct {
-				Scripts map[string]string `json:"scripts"`
-			}
-			if json.Unmarshal(data, &packageJson) == nil {
-				if script, exists := packageJson.Scripts[scriptName]; exists {
-					if dangerous, _ := containsDangerousCommand(script); dangerous {
-						return nil, false
-					}
-				}
-			}
-		}
-	}
+	// Check dangerous scripts - TEMPORARILY DISABLED
+	// if baseCmd == "run" && len(cmdParts) >= 2 {
+	// 	scriptName := cmdParts[1]
+	// 	packageJsonPath := filepath.Join(app.AppRoot, "package.json")
+	// 	if data, err := os.ReadFile(packageJsonPath); err == nil {
+	// 		var packageJson struct {
+	// 			Scripts map[string]string `json:"scripts"`
+	// 		}
+	// 		if json.Unmarshal(data, &packageJson) == nil {
+	// 			if script, exists := packageJson.Scripts[scriptName]; exists {
+	// 				if dangerous, _ := containsDangerousCommand(script); dangerous {
+	// 					return nil, false
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	return &app, true
 }
@@ -964,26 +965,26 @@ func (h *Handler) validateNpmCommand(c *fiber.Ctx, userID int64, role, appID, co
 		})
 	}
 
-	// If running a script, check package.json for dangerous commands
-	if baseCmd == "run" && len(cmdParts) >= 2 {
-		scriptName := cmdParts[1]
-		packageJsonPath := filepath.Join(app.AppRoot, "package.json")
-		if data, err := os.ReadFile(packageJsonPath); err == nil {
-			var packageJson struct {
-				Scripts map[string]string `json:"scripts"`
-			}
-			if json.Unmarshal(data, &packageJson) == nil {
-				if script, exists := packageJson.Scripts[scriptName]; exists {
-					if dangerous, pattern := containsDangerousCommand(script); dangerous {
-						return nil, c.Status(fiber.StatusForbidden).JSON(models.APIResponse{
-							Success: false,
-							Error:   fmt.Sprintf("Bu script güvenlik nedeniyle engellenmiştir. Tehlikeli komut tespit edildi: '%s'", pattern),
-						})
-					}
-				}
-			}
-		}
-	}
+	// If running a script, check package.json for dangerous commands - TEMPORARILY DISABLED
+	// if baseCmd == "run" && len(cmdParts) >= 2 {
+	// 	scriptName := cmdParts[1]
+	// 	packageJsonPath := filepath.Join(app.AppRoot, "package.json")
+	// 	if data, err := os.ReadFile(packageJsonPath); err == nil {
+	// 		var packageJson struct {
+	// 			Scripts map[string]string `json:"scripts"`
+	// 		}
+	// 		if json.Unmarshal(data, &packageJson) == nil {
+	// 			if script, exists := packageJson.Scripts[scriptName]; exists {
+	// 				if dangerous, pattern := containsDangerousCommand(script); dangerous {
+	// 					return nil, c.Status(fiber.StatusForbidden).JSON(models.APIResponse{
+	// 						Success: false,
+	// 						Error:   fmt.Sprintf("Bu script güvenlik nedeniyle engellenmiştir. Tehlikeli komut tespit edildi: '%s'", pattern),
+	// 					})
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	return &app, nil
 }
