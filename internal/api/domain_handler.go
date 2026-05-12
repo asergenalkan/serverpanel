@@ -828,23 +828,47 @@ func (h *Handler) createDomainResources(username, domain, documentRoot string) {
 		log.Printf("✅ DNS zone oluşturuldu: %s", domain)
 	}
 
-	// Create welcome page
 	welcomeHTML := fmt.Sprintf(`<!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-    <title>%s</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>%s - Hoş Geldiniz</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
-        .container { background: white; padding: 40px; border-radius: 10px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; }
-        p { color: #666; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+        h1 { font-size: 3rem; margin-bottom: 1rem; }
+        p { font-size: 1.2rem; opacity: 0.9; }
+        .domain {
+            font-family: monospace;
+            background: rgba(255,255,255,0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>%s</h1>
-        <p>Bu domain başarıyla yapılandırıldı.</p>
-        <p>Dosyalarınızı yükleyerek sitenizi yayınlayabilirsiniz.</p>
+        <h1>🎉 Tebrikler!</h1>
+        <p>Website başarıyla oluşturuldu.</p>
+        <div class="domain">%s</div>
+        <p style="margin-top: 2rem; font-size: 0.9rem; opacity: 0.7;">
+            Bu sayfayı değiştirmek için public_html klasörüne dosyalarınızı yükleyin.
+        </p>
     </div>
 </body>
 </html>
